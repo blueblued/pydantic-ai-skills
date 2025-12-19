@@ -68,9 +68,11 @@ def _validate_skill_metadata(
 
     # Validate name format
     if name:
+        # Check length first to prevent regex on excessively long strings
         if len(name) > 64:
             warnings_list.append(f"Skill name '{name}' exceeds 64 characters ({len(name)} chars)")
-        if not SKILL_NAME_PATTERN.match(name):
+        # Only run regex if name is reasonable length (defense in depth)
+        elif not SKILL_NAME_PATTERN.match(name):
             warnings_list.append(f"Skill name '{name}' should contain only lowercase letters, numbers, and hyphens")
         # Check for reserved words
         for reserved in RESERVED_WORDS:
