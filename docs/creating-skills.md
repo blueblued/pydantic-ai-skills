@@ -6,12 +6,13 @@ This guide covers everything you need to know to create effective skills for you
 
 Every skill must have at minimum:
 
-```
+```markdown
 my-skill/
 └── SKILL.md
 ```
 
 The `SKILL.md` file contains:
+
 1. **YAML frontmatter** with metadata
 2. **Markdown content** with instructions
 
@@ -40,20 +41,24 @@ Instructions for the agent on how to use this skill...
 Following Anthropic's skill naming conventions (logged as warnings if violated):
 
 **Name Requirements:**
+
 - Use only lowercase letters, numbers, and hyphens
 - Maximum 64 characters
 - Avoid reserved words like "anthropic" or "claude"
 
 **Description Requirements:**
+
 - Maximum 1024 characters
 - Clear and concise summary of functionality
 
 **Example Good Names:**
+
 - `arxiv-search` ✅
 - `web-research` ✅
 - `data-analyzer` ✅
 
 **Example Bad Names:**
+
 - `ArxivSearch` ❌ (uppercase)
 - `arxiv_search` ❌ (underscores)
 - `my-super-amazing-incredible-skill-that-does-everything` ❌ (too long)
@@ -94,6 +99,7 @@ description: Search arXiv for research papers
 ## When to Use
 
 Use this skill when you need to:
+
 - Find recent preprints in physics, math, or computer science
 - Search for papers not yet published in journals
 - Access cutting-edge research
@@ -123,11 +129,11 @@ run_skill_script(
 ## Output Format
 
 The script returns a formatted list with:
+
 - Paper title
 - Authors
 - arXiv ID
 - Abstract
-```
 
 ## Adding Scripts
 
@@ -136,20 +142,22 @@ Scripts enable skills to perform custom operations that aren't available as stan
 ### Script Location
 
 Place scripts in either:
+
 - `scripts/` subdirectory (recommended)
 - Directly in the skill folder
 
-```
+```markdown
 my-skill/
 ├── SKILL.md
 └── scripts/
-    ├── process_data.py
-    └── fetch_info.py
+├── process_data.py
+└── fetch_info.py
 ```
 
 ### Writing Scripts
 
 Scripts should:
+
 - Accept command-line arguments via `sys.argv`
 - Print output to stdout
 - Exit with code 0 on success, non-zero on error
@@ -215,7 +223,7 @@ Resources are additional files that provide supplementary information.
 
 ### Resource Location
 
-```
+```markdown
 my-skill/
 ├── SKILL.md
 ├── REFERENCE.md          # Additional .md files
@@ -228,6 +236,7 @@ my-skill/
 ### When to Use Resources
 
 Use resources for:
+
 - **Large reference documents**: API schemas, data dictionaries
 - **Templates**: Form templates, code snippets
 - **Example data**: Sample inputs/outputs
@@ -260,7 +269,6 @@ read_skill_resource(
     resource_name="resources/templates.json"
 )
 ```
-```
 
 ## Organizing Multiple Skills
 
@@ -268,35 +276,35 @@ read_skill_resource(
 
 Good for small projects:
 
-```
+```markdown
 skills/
 ├── skill-one/
-│   └── SKILL.md
+│ └── SKILL.md
 ├── skill-two/
-│   └── SKILL.md
+│ └── SKILL.md
 └── skill-three/
-    └── SKILL.md
+└── SKILL.md
 ```
 
 ### Categorized Structure
 
 Good for large projects:
 
-```
+```markdown
 skills/
 ├── research/
-│   ├── arxiv-search/
-│   │   └── SKILL.md
-│   └── pubmed-search/
-│       └── SKILL.md
+│ ├── arxiv-search/
+│ │ └── SKILL.md
+│ └── pubmed-search/
+│ └── SKILL.md
 ├── data-processing/
-│   ├── csv-analyzer/
-│   │   └── SKILL.md
-│   └── json-validator/
-│       └── SKILL.md
+│ ├── csv-analyzer/
+│ │ └── SKILL.md
+│ └── json-validator/
+│ └── SKILL.md
 └── communication/
-    └── email-sender/
-        └── SKILL.md
+└── email-sender/
+└── SKILL.md
 ```
 
 Use both directories in your toolset:
@@ -403,7 +411,8 @@ if __name__ == "__main__":
 **Use when**: The skill provides methodology or best practices without executable code.
 
 **Structure**:
-```
+
+```markdown
 web-research/
 └── SKILL.md
 ```
@@ -446,6 +455,7 @@ Combine findings:
 ```
 
 **When to use**:
+
 - Process guidelines
 - Best practices
 - Methodology instructions
@@ -456,7 +466,8 @@ Combine findings:
 **Use when**: The skill needs to execute custom code or interact with external services.
 
 **Structure**:
-```
+
+```markdown
 arxiv-search/
 ├── SKILL.md
 └── scripts/
@@ -489,7 +500,6 @@ run_skill_script(
 
 - **query** (required): Search query string
 - `--max-papers`: Maximum results (default: 10)
-```
 
 **Example Script**:
 
@@ -520,6 +530,7 @@ if __name__ == "__main__":
 ```
 
 **When to use**:
+
 - API integrations
 - Data processing
 - File operations
@@ -530,7 +541,8 @@ if __name__ == "__main__":
 **Use when**: The skill provides access to external documentation.
 
 **Structure**:
-```
+
+```markdown
 pydanticai-docs/
 └── SKILL.md
 ```
@@ -548,6 +560,7 @@ description: Access Pydantic AI framework documentation
 ## When to Use
 
 Use this skill for questions about:
+
 - Creating agents
 - Defining tools
 - Working with models
@@ -573,6 +586,7 @@ Key concepts:
 ```
 
 **When to use**:
+
 - Documentation shortcuts
 - Quick reference guides
 - Link aggregation
@@ -583,7 +597,8 @@ Key concepts:
 **Use when**: The skill needs extensive documentation broken into logical sections.
 
 **Structure**:
-```
+
+```markdown
 api-integration/
 ├── SKILL.md
 ├── API_REFERENCE.md
@@ -629,9 +644,9 @@ read_skill_resource(
 1. Load the API reference
 2. Review examples
 3. Use the appropriate schema
-```
 
 **When to use**:
+
 - Complex APIs
 - Multiple related documents
 - Template collections
@@ -642,15 +657,16 @@ read_skill_resource(
 **Use when**: Combining instructions with scripts and resources.
 
 **Structure**:
-```
+
+```markdown
 data-analyzer/
 ├── SKILL.md
 ├── REFERENCE.md
 ├── scripts/
-│   ├── analyze.py
-│   └── visualize.py
+│ ├── analyze.py
+│ └── visualize.py
 └── resources/
-    └── sample_data.csv
+└── sample_data.csv
 ```
 
 **Example**:
@@ -702,9 +718,9 @@ read_skill_resource(
     resource_name="REFERENCE.md"
 )
 ```
-```
 
 **When to use**:
+
 - Complex workflows
 - Multi-step processes
 - Teaching/tutorial scenarios
@@ -714,32 +730,37 @@ read_skill_resource(
 #### Skill Granularity
 
 **Too Broad** ❌:
-```
+
+```markdown
 general-research/
-└── SKILL.md  # Covers web search, arxiv, pubmed, datasets...
+└── SKILL.md # Covers web search, arxiv, pubmed, datasets...
 ```
 
 **Too Narrow** ❌:
-```
+
+```markdown
 arxiv-search-physics/
 arxiv-search-cs/
 arxiv-search-math/
 ```
 
 **Just Right** ✅:
-```
+
+```markdown
 arxiv-search/
-└── SKILL.md  # Single focused capability
+└── SKILL.md # Single focused capability
 ```
 
-#### Naming Conventions
+#### Naming Guidelines
 
 **Good Names**:
+
 - `arxiv-search` - Clear, descriptive
 - `csv-analyzer` - Action-oriented
 - `api-client` - Generic but scoped
 
 **Poor Names**:
+
 - `skill1` - Not descriptive
 - `the_super_amazing_tool` - Too long
 - `ArxivSearchTool` - Use kebab-case
@@ -747,11 +768,13 @@ arxiv-search/
 #### Description Guidelines
 
 **Good Descriptions**:
+
 - "Search arXiv for research papers in physics, math, and CS"
 - "Analyze CSV files and generate statistics"
 - "Structured approach to web research"
 
 **Poor Descriptions**:
+
 - "Useful tool" - Too vague
 - "Does stuff" - Not informative
 - (300 character description) - Too long
@@ -761,6 +784,7 @@ arxiv-search/
 Start simple, add complexity as needed:
 
 **Version 1** - Instructions only:
+
 ```markdown
 ---
 name: api-client
@@ -771,14 +795,16 @@ Use your HTTP tools to call https://api.example.com/v1/...
 ```
 
 **Version 2** - Add reference:
-```
+
+```markdown
 api-client/
 ├── SKILL.md
 └── API_REFERENCE.md
 ```
 
 **Version 3** - Add scripts:
-```
+
+```markdown
 api-client/
 ├── SKILL.md
 ├── API_REFERENCE.md
@@ -794,9 +820,11 @@ Don't create skills that depend on each other:
 
 ```markdown
 # skill-a/SKILL.md
+
 To use this skill, first load skill-b...
 
 # skill-b/SKILL.md
+
 This skill requires skill-a to be loaded...
 ```
 
@@ -805,22 +833,19 @@ This skill requires skill-a to be loaded...
 Never include API keys or passwords:
 
 ```markdown
-# ❌ DON'T DO THIS
 API_KEY = "sk-1234567890abcdef"
 ```
 
 Instead, document how to configure:
 
 ```markdown
-# ✅ DO THIS
-## Setup
-
 Set your API key as an environment variable:
 
 ```bash
 export XYZ_API_KEY="your-key-here"
 ```
-```
+
+or set them in the environment where the agent runs.
 
 #### ❌ Overly Generic Skills
 

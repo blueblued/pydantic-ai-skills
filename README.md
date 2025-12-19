@@ -235,6 +235,12 @@ This follows Anthropic's approach where all metadata is pre-loaded, enabling age
 
 If you do not add this to your agent's system prompt, the agent can still use the skill tools, but it will need to call `list_skills()` to discover available skills and is more likely to misuse skills.
 
+## Security considerations
+
+We strongly recommend that you use Skills only from trusted sources: those you created yourself or obtained from trusted sources. Skills provide AI Agents with new capabilities through instructions and code, and while this makes them powerful, it also means a malicious Skill can direct agents to invoke tools or execute code in ways that don't match the Skill's stated purpose.
+
+> If you must use a Skill from an untrusted or unknown source, exercise extreme caution and thoroughly audit it before use. Depending on what access agents have when executing the Skill, malicious Skills could lead to data exfiltration, unauthorized system access, or other security risks.
+
 ## Related Resources
 
 - [Anthropic Agent Skills Documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)

@@ -58,6 +58,7 @@ print(result.output)
 ## Why Use Skills?
 
 **Instead of this** (hardcoded capabilities):
+
 ```python
 agent = Agent(
     instructions="""You are a research assistant.
@@ -67,6 +68,7 @@ agent = Agent(
 ```
 
 **Do this** (progressive discovery):
+
 ```python
 skills_toolset = SkillsToolset(directories=["./skills"])
 agent = Agent(
@@ -83,6 +85,14 @@ agent = Agent(
 - **Clarity**: Keep instructions focused and organized
 - **Reusability**: Share skills across different agents
 - **Testing**: Test skills in isolation
+
+## Security considerations
+
+We strongly recommend that you use Skills only from trusted sources: those you created yourself or obtained from trusted sources. Skills provide AI Agents with new capabilities through instructions and code, and while this makes them powerful, it also means a malicious Skill can direct agents to invoke tools or execute code in ways that don't match the Skill's stated purpose.
+
+!!! warning
+
+    If you must use a Skill from an untrusted or unknown source, exercise extreme caution and thoroughly audit it before use. Depending on what access agents have when executing the Skill, malicious Skills could lead to data exfiltration, unauthorized system access, or other security risks.
 
 ## Next Steps
 
