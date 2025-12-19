@@ -21,7 +21,7 @@ This package implements [Anthropic's Agent Skills framework](https://platform.cl
 
 Full documentation available at: [https://dougtrajano.github.io/pydantic-ai-skills](https://dougtrajano.github.io/pydantic-ai-skills)
 
-> This project was highly inspired by [pydantic-deepagents](https://github.com/vstorm-co/pydantic-deepagents), which provided foundational ideas and patterns for agent skill modularity and progressive disclosure in the Pydantic AI ecosystem. We gratefully acknowledge their work and contributions to the agent skills community.
+> This project was highly inspired by [pydantic-deepagents](https://github.com/vstorm-co/pydantic-deepagents), which provided foundational ideas and patterns for agent skill implementation and progressive disclosure in the Pydantic AI. We gratefully acknowledge their work and contributions to the community.
 
 ## Installation
 
