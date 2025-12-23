@@ -25,6 +25,11 @@ from typing import Any
 
 import anyio
 import yaml
+
+import importlib
+import os    
+
+
 from pydantic_ai import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -338,6 +343,40 @@ def _is_safe_path(base_path: Path, target_path: Path) -> bool:
     except ValueError:
         return False
 
+def run_from_file(file_path: Path, args: list[str] | None = None):
+    """
+    从指定文件加载并运行函数,默认调用run函数
+    
+    Args:
+        file_path: py文件完整路径(如：Path('/path/to/my_module.py'))
+        args: 传递给函数的参数
+
+    Example:
+        ```python
+        result = run_function_from_file(
+            Path('/path/to/my_module.py'), # 完整路径
+            arg1, arg2,  # 位置参数
+            kwarg1=value1  # 关键字参数
+        )
+    ```
+    """
+    # 将文件所在目录添加到sys.path
+    module_dir = file_path.parent
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
+    
+    # 获取模块名（不含.py）
+    module_name = file_path.stem
+    
+    # 导入模块
+    spec = importlib.util.spec_from_file_location(module_name, str(file_path))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    
+    # 获取并运行函数
+    func = getattr(module, 'run')
+    return func(*args)
 
 class SkillsToolset(FunctionToolset):
     """Pydantic AI toolset for automatic skill discovery and integration.
@@ -564,7 +603,7 @@ class SkillsToolset(FunctionToolset):
                 The script's output (stdout and stderr combined).
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
-            print(f"skill_name: {skill_name}, ctx.deps: {ctx.deps}")    
+            print(f"skill_name: {skill_name}, ctx.deps: {ctx.deps} for test.")    
             if skill_name not in self._skills:
                 return f"Error: Skill '{skill_name}' not found."
 
@@ -589,42 +628,10 @@ class SkillsToolset(FunctionToolset):
                 return 'Error: Script path escapes skill directory.'
 
             # Build command
-            cmd = [self._python_executable, str(script.path)]
-            if args:
-                cmd.extend(args)
-
             logger.info('Running script: %s with args: %s', script_name, args)
-
             try:
-                # Use anyio.run_process for async-compatible execution
-                result = None
-                with anyio.move_on_after(self._script_timeout) as scope:
-                    result = await anyio.run_process(
-                        cmd,
-                        check=False,  # We handle return codes manually
-                        cwd=str(skill.path),
-                    )
-
-                # Check if timeout was reached
-                if scope.cancelled_caught:
-                    logger.error('Script %s timed out after %d seconds', script_name, self._script_timeout)
-                    raise SkillScriptExecutionError(
-                        f"Script '{script_name}' timed out after {self._script_timeout} seconds"
-                    )
-
-                # At this point, result should be set (timeout check passed)
-                assert result is not None
-
-                # Decode output from bytes to string
-                output = result.stdout.decode('utf-8', errors='replace')
-                if result.stderr:
-                    stderr = result.stderr.decode('utf-8', errors='replace')
-                    output += f'\n\nStderr:\n{stderr}'
-
-                if result.returncode != 0:
-                    output += f'\n\nScript exited with code {result.returncode}'
-
-                return output.strip() or '(no output)'
+                # Use run_from_file to run the script
+                return run_from_file(script.path, args)
 
             except OSError as e:
                 logger.error('Failed to execute script %s: %s', script_name, e)
