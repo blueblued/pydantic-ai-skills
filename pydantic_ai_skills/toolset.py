@@ -31,6 +31,7 @@ import os
 
 
 from pydantic_ai import RunContext
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets import FunctionToolset
 
 from pydantic_ai_skills.exceptions import (
@@ -343,23 +344,24 @@ def _is_safe_path(base_path: Path, target_path: Path) -> bool:
     except ValueError:
         return False
 
-def run_from_file(file_path: Path, args: list[str] | None = None):
+async def run_from_file(file_path: Path, **kwargs):
     """
     从指定文件加载并运行函数,默认调用run函数
     
     Args:
         file_path: py文件完整路径(如：Path('/path/to/my_module.py'))
-        args: 传递给函数的参数
+        kwargs: 传递给函数的字典形式的可变参数
 
     Example:
         ```python
-        result = run_function_from_file(
+        return run_from_file(
             Path('/path/to/my_module.py'), # 完整路径
-            arg1, arg2,  # 位置参数
-            kwarg1=value1  # 关键字参数
+            arg1=value1, arg2=value2, ... # 关键字参数，可以是任意多个
         )
     ```
     """
+    import inspect
+    
     # 将文件所在目录添加到sys.path
     module_dir = file_path.parent
     if module_dir not in sys.path:
@@ -376,7 +378,28 @@ def run_from_file(file_path: Path, args: list[str] | None = None):
     
     # 获取并运行函数
     func = getattr(module, 'run')
-    return func(*args)
+    
+    # 验证参数是否匹配函数签名
+    sig = inspect.signature(func)
+    param_names = set(sig.parameters.keys())
+    
+    # 检查是否有 **kwargs 参数（VAR_KEYWORD）
+    has_var_keyword = any(param.kind == inspect.Parameter.VAR_KEYWORD 
+                         for param in sig.parameters.values())
+    
+    if not has_var_keyword:
+        # 如果没有 **kwargs，检查是否有意外的参数
+        unexpected_params = set(kwargs.keys()) - param_names
+        if unexpected_params:
+            expected_params = ', '.join(sorted(param_names))
+            unexpected_str = ', '.join(sorted(unexpected_params))
+            raise TypeError(
+                f"Unexpected parameters: {unexpected_str}. "
+                f"This script only accepts these parameters: {expected_params}. "
+                f"Please check the skill documentation and use exactly the parameter names specified."
+            )
+    
+    return await func(**kwargs)
 
 class SkillsToolset(FunctionToolset):
     """Pydantic AI toolset for automatic skill discovery and integration.
@@ -389,7 +412,7 @@ class SkillsToolset(FunctionToolset):
     - list_skills(): List all available skills
     - load_skill(skill_name): Load a specific skill's instructions
     - read_skill_resource(skill_name, resource_name): Read a skill resource file
-    - run_skill_script(skill_name, script_name, args): Execute a skill script
+    - run_skill_script(skill_name, script_name, **kwargs): Execute a skill script
 
     Example:
         ```python
@@ -586,9 +609,9 @@ class SkillsToolset(FunctionToolset):
             ctx: RunContext[Any],
             skill_name: str,
             script_name: str,
-            args: list[str] | None = None,
+            **kwargs
         ) -> str:
-            """Execute a skill script with command-line arguments.
+            """Execute a skill script with keyword arguments.
 
             Call load_skill first to understand the script's expected arguments,
             usage patterns, and example invocations. Running scripts without
@@ -597,13 +620,13 @@ class SkillsToolset(FunctionToolset):
             Args:
                 skill_name: Name of the skill.
                 script_name: The script name (without .py extension).
-                args: Optional list of command-line arguments (positional args, flags, values).
+                kwargs: Optional keyword arguments.
 
             Returns:
                 The script's output (stdout and stderr combined).
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
-            print(f"skill_name: {skill_name}, ctx.deps: {ctx.deps} for test.")    
+            print(f"LOG: skill_name: {skill_name}, ctx.deps: {ctx.deps}, kwargs: {kwargs}.")    
             if skill_name not in self._skills:
                 return f"Error: Skill '{skill_name}' not found."
 
@@ -628,14 +651,51 @@ class SkillsToolset(FunctionToolset):
                 return 'Error: Script path escapes skill directory.'
 
             # Build command
-            logger.info('Running script: %s with args: %s', script_name, args)
+            logger.info('Running script: %s with kwargs: %s', script_name, kwargs)
             try:
                 # Use run_from_file to run the script
-                return run_from_file(script.path, args)
+                return await run_from_file(script.path, **kwargs)
 
             except OSError as e:
                 logger.error('Failed to execute script %s: %s', script_name, e)
                 raise SkillScriptExecutionError(f"Failed to execute script '{script_name}': {e}") from e
+            except TypeError as e:
+                logger.error('Type error occurred while executing script %s: %s', script_name, e)
+                # raise 让agent重试
+                raise ModelRetry(f"Type error occurred while executing script '{script_name}': {e}") from e
+            except Exception as e:
+                logger.error('Unknown error occurred while executing script %s: %s', script_name, e)
+                # 这里不重试
+                raise SkillScriptExecutionError(f"Unknown error occurred while executing script '{script_name}': {e}") from e
+
+    def _extract_script_args(self, skill_content: str, script_name: str) -> str:
+        """Extract script arguments from skill content.
+        
+        Args:
+            skill_content: The full content of SKILL.md
+            script_name: Name of the script to extract args for
+        
+        Returns:
+            Formatted string of script arguments, or empty string if not found
+        """
+        import re
+        
+        # Look for script-specific sections or general Script Args section
+        # Pattern: "- Script Args" followed by indented parameter lines
+        # Matches lines that start with spaces/tabs after "- Script Args"
+        pattern = r'- Script Args\s*\n((?:\s+[^\n]+\n?)+)'
+        match = re.search(pattern, skill_content, re.MULTILINE)
+        
+        if match:
+            args_text = match.group(1)
+            # Extract parameter names (format: param_name:type or param_name:type (required))
+            # Handles formats like: "expression:str", "expression:str (required)", "param: int", etc.
+            param_pattern = r'(\w+)\s*:\s*\w+(?:\s*\(required\))?'
+            params = re.findall(param_pattern, args_text)
+            if params:
+                return ', '.join(params)
+        
+        return ''
 
     def get_skills_system_prompt(self) -> str:
         """Get the combined system prompt from all loaded skills.
@@ -668,9 +728,15 @@ class SkillsToolset(FunctionToolset):
             '',
         ]
 
-        # List all skills with descriptions
+        # List all skills with descriptions and script parameters
         for name, skill in sorted(self._skills.items()):
             lines.append(f'- **{name}**: {skill.metadata.description}')
+            # Extract script arguments from skill content
+            if skill.scripts:
+                for script in skill.scripts:
+                    script_args = self._extract_script_args(skill.content, script.name)
+                    if script_args:
+                        lines.append(f'  - Script `{script.name}` parameters: {script_args}')
 
         lines.extend(
             [
@@ -680,12 +746,26 @@ class SkillsToolset(FunctionToolset):
                 '',
                 '1. **When a skill is relevant to the current task**: Use `load_skill(skill_name)` to read the full instructions.',
                 '2. **For additional documentation**: Use `read_skill_resource(skill_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
-                '3. **To execute skill scripts**: Use `run_skill_script(skill_name, script_name, args)` with appropriate command-line arguments.',
+                '3. **To execute skill scripts**: Use `run_skill_script(skill_name, script_name, **kwargs)` with appropriate keyword arguments.',
+                '',
+                '**CRITICAL: Parameter Requirements**',
+                '',
+                'Each skill script has SPECIFIC parameter requirements listed above. When calling `run_skill_script`:',
+                '',
+                '1. **Use EXACTLY the parameter names shown above** for each script',
+                '2. **Count the parameters**: If a script shows 1 parameter (e.g., `expression`), pass ONLY 1 parameter',
+                '3. **DO NOT invent parameter names**: Never use `num1`, `num2`, `a`, `b`, `operation`, `operand1`, `operand2` unless explicitly listed above',
+                '4. **DO NOT split parameters**: If a script expects `expression: str`, use `expression="1 + 2"`, NOT `num1=1, num2=2`',
+                '5. **Parameter names are case-sensitive**: Use exact spelling from the list above',
+                '',
+                '**Example**: For calculator skill, script `calculate` requires parameter `expression`.',
+                '  ✅ CORRECT: `run_skill_script(skill_name="calculator", script_name="calculate", expression="2 + 2")`',
+                '  ❌ WRONG: `run_skill_script(skill_name="calculator", script_name="calculate", num1="2", num2="2")`',
                 '',
                 '**Best practices**:',
                 '- Select skills based on task relevance and descriptions listed above',
-                '- Use progressive disclosure: load only what you need, when you need it, starting with load_skill',
-                "- Follow the skill's documented usage patterns and examples",
+                '- Check the parameter list above BEFORE calling `run_skill_script`',
+                '- If you need more details, call `load_skill(skill_name)` to read full instructions',
                 '',
             ]
         )
