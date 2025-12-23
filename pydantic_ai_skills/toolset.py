@@ -564,6 +564,7 @@ class SkillsToolset(FunctionToolset):
                 The script's output (stdout and stderr combined).
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
+            print(f"skill_name: {skill_name}, ctx: {ctx}")    
             if skill_name not in self._skills:
                 return f"Error: Skill '{skill_name}' not found."
 
