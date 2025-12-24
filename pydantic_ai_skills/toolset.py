@@ -719,30 +719,39 @@ class SkillsToolset(FunctionToolset):
         lines = [
             '# Skills',
             '',
+            '**CRITICAL: Skills are NOT callable tools. DO NOT call skills directly.**',
+            '',
             'You have access to skills that extend your capabilities. ',
             'Skills are modular packages containing instructions, resources, and scripts for specialized tasks.',
-            'Skills can only be operated by skill tools: list_skills, load_skill, read_skill_resource, run_skill_script.'
-            '**You can call skills\'s script by tool run_skill_script, don\'t call the script directly.**'
+            '',
+            '**You CANNOT call skills directly. You MUST use skill tools to interact with skills:**',
+            '- `load_skill(skill_name)` - to read skill instructions',
+            '- `read_skill_resource(skill_name, resource_name)` - to read skill resources',
+            '- `run_skill_script(skill_name, script_name, **kwargs)` - to execute skill scripts',
+            '',
+            '**Make sure to read the skill\'s full instructions using the load_skill tool to understand its capabilities, available scripts, and other knowledge before using it.**',
             '',
             '## Available Skills',
             '',
-            'The following skills are available to you. Use them when relevant to the task:',
+            'The following skills are available to you:',
             '',
         ]
 
         # List all skills with descriptions and script parameters
         for name, skill in sorted(self._skills.items()):
             lines.append(f'- **{name}**: {skill.metadata.description}')
-            # Extract script arguments from skill content
-            if skill.scripts:
-                for script in skill.scripts:
-                    script_args = self._extract_script_args(skill.content, script.name)
-                    if script_args:
-                        lines.append(f'  - Script `{script.name}` parameters: {script_args}')
+            # # Extract script arguments from skill content
+            # if skill.scripts:
+            #     for script in skill.scripts:
+            #         script_args = self._extract_script_args(skill.content, script.name)
+            #         if script_args:
+            #             lines.append(f'  - Script `{script.name}` parameters: {script_args}')
 
         lines.extend(
             [
                 '## How to Use Skills',
+                '',
+                '**REMINDER: Skills are NOT callable. You MUST use skill tools (load_skill, run_skill_script, etc.) to interact with skills.**',
                 '',
                 '**Progressive disclosure**: Load skill information only when needed.',
                 '',
