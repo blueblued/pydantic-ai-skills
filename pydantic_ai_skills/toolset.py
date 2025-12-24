@@ -5,7 +5,7 @@ containing a SKILL.md file with YAML frontmatter and Markdown instructions, alon
 with optional resource files (documents, scripts, etc.).
 
 Progressive disclosure: Only skill metadata is exposed initially. The full
-instructions are loaded on-demand when the agent calls the load_skill tool.
+instructions are loaded on-demand when the agent calls the activate_skill tool.
 
 This module provides:
 - SkillsToolset: A Pydantic AI toolset with four tools for skill management
@@ -410,7 +410,7 @@ class SkillsToolset(FunctionToolset):
 
     Provides the following tools to agents:
     - list_skills(): List all available skills
-    - load_skill(skill_name): Load a specific skill's instructions
+    - activate_skill(skill_name): Activate a skill and load its instructions
     - read_skill_resource(skill_name, resource_name): Read a skill resource file
     - run_skill_script(skill_name, script_name, **kwargs): Execute a skill script
 
@@ -481,7 +481,7 @@ class SkillsToolset(FunctionToolset):
 
         This method registers all four skill management tools:
         - list_skills: List available skills
-        - load_skill: Load skill instructions
+        - activate_skill: Activate a skill and load its instructions
         - read_skill_resource: Read skill resources
         - run_skill_script: Execute skill scripts
         """
@@ -506,15 +506,15 @@ class SkillsToolset(FunctionToolset):
             return '\n'.join(lines)
 
         @self.tool
-        async def load_skill(ctx: RunContext[Any], skill_name: str) -> str:  # noqa: D417
-            """Load full instructions for a skill.
+        async def activate_skill(ctx: RunContext[Any], skill_name: str) -> str:  # noqa: D417
+            """Activate a skill and load its full instructions, making it the current available skill.
 
-            Always load the skill before using read_skill_resource
+            Always activate the skill before using read_skill_resource
             or run_skill_script to understand the skill's capabilities, available
             resources, scripts, and their usage patterns.
 
             Args:
-                skill_name: Name of the skill to load.
+                skill_name: Name of the skill to activate.
 
             Returns:
                 Full skill instructions including available resources and scripts.
@@ -525,7 +525,7 @@ class SkillsToolset(FunctionToolset):
                 return f"Error: Skill '{skill_name}' not found. Available skills: {available}"
 
             skill = self._skills[skill_name]
-            logger.info('Loading skill: %s', skill_name)
+            logger.info('Activating skill: %s', skill_name)
 
             lines = [
                 f'# Skill: {skill.name}',
@@ -562,7 +562,7 @@ class SkillsToolset(FunctionToolset):
         ) -> str:
             """Read a resource file from a skill (e.g., FORMS.md, REFERENCE.md).
 
-            Call load_skill first to see which resources are available.
+            Call activate_skill first to see which resources are available.
 
             Args:
                 skill_name: Name of the skill.
@@ -613,7 +613,7 @@ class SkillsToolset(FunctionToolset):
         ) -> str:
             """Execute a skill script with keyword arguments.
 
-            Call load_skill first to understand the script's expected arguments,
+            Call activate_skill first to understand the script's expected arguments,
             usage patterns, and example invocations. Running scripts without
             loading instructions first will likely fail.
 
@@ -719,21 +719,19 @@ class SkillsToolset(FunctionToolset):
         lines = [
             '# Skills',
             '',
-            '**CRITICAL: Skills are NOT callable tools. DO NOT call skills directly.**',
-            '',
             'You have access to skills that extend your capabilities. ',
             'Skills are modular packages containing instructions, resources, and scripts for specialized tasks.',
+            'Skills are in standby mode by default. You must use the `activate_skill` tool to activate a skill and make it the current available skill.',
+            '**State management**: Only one skill can be available at a time. When you activate a new skill, it becomes the current available skill and replaces any previously activated skill. Only the currently available skill can be used for `read_skill_resource` and `run_skill_script`.',
             '',
             '**You CANNOT call skills directly. You MUST use skill tools to interact with skills:**',
-            '- `load_skill(skill_name)` - to read skill instructions',
+            '- `activate_skill(skill_name)` - to activate a skill (load its instructions and make it the current available skill)',
             '- `read_skill_resource(skill_name, resource_name)` - to read skill resources',
             '- `run_skill_script(skill_name, script_name, **kwargs)` - to execute skill scripts',
             '',
-            '**Make sure to read the skill\'s full instructions using the load_skill tool to understand its capabilities, available scripts, and other knowledge before using it.**',
+            '## Standby Skills',
             '',
-            '## Available Skills',
-            '',
-            'The following skills are available to you:',
+            'The following skills are in standby mode:',
             '',
         ]
 
@@ -751,11 +749,11 @@ class SkillsToolset(FunctionToolset):
             [
                 '## How to Use Skills',
                 '',
-                '**REMINDER: Skills are NOT callable. You MUST use skill tools (load_skill, run_skill_script, etc.) to interact with skills.**',
+                '**REMINDER: Skills are NOT callable. You MUST use skill tools (activate_skill, run_skill_script, etc.) to interact with skills.**',
                 '',
-                '**Progressive disclosure**: Load skill information only when needed.',
+                '**Progressive disclosure**: Activate skills only when needed.',
                 '',
-                '1. **When a skill is relevant to the current task**: Use `load_skill(skill_name)` to read the full instructions.',
+                '1. **When a skill is relevant to the current task**: Use `activate_skill(skill_name)` to activate the skill and read its full instructions.',
                 '2. **For additional documentation**: Use `read_skill_resource(skill_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
                 '3. **To execute skill scripts**: Use `run_skill_script(skill_name, script_name, **kwargs)` with appropriate keyword arguments.',
                 '',
@@ -771,7 +769,7 @@ class SkillsToolset(FunctionToolset):
                 '**Best practices**:',
                 '- Select skills based on task relevance and descriptions listed above',
                 '- Check the parameter list above BEFORE calling `run_skill_script`',
-                '- If you need more details, call `load_skill(skill_name)` to read full instructions',
+                '- If you need more details, call `activate_skill(skill_name)` to activate and read full instructions',
                 '',
             ]
         )
