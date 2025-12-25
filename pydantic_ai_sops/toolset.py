@@ -43,8 +43,7 @@ from pydantic_ai_sops.exceptions import (
 from pydantic_ai_sops.types import (
     SOP,
     SOPMetadata,
-    SOPResource,
-    SOPScript,
+    SOPResource
 )
 
 logger = logging.getLogger('pydantic-ai-sops')
@@ -179,48 +178,20 @@ def _discover_resources(sop_folder: Path) -> list[SOPResource]:
     return resources
 
 
-def _discover_scripts(sop_folder: Path, sop_name: str) -> list[SOPScript]:
-    """Discover executable scripts in a SOP folder.
-
-    Looks for Python scripts in:
-    - Directly in the SOP folder (*.py)
-    - In a scripts/ subdirectory
+def _check_toolset(sop_folder: Path, sop_name: str) -> bool:
+    """Check if a SOP folder contains a toolset(toolset.py).
 
     Args:
         sop_folder: Path to the SOP directory.
         sop_name: Name of the parent SOP.
 
     Returns:
-        List of discovered SOPScript objects.
+        True if a toolset is found, False otherwise.
     """
-    scripts: list[SOPScript] = []
-
-    # Find .py files in SOP folder root (excluding __init__.py)
-    for py_file in sop_folder.glob('*.py'):
-        if py_file.name != '__init__.py':
-            scripts.append(
-                SOPScript(
-                    name=py_file.stem,  # filename without .py
-                    path=py_file.resolve(),
-                    sop_name=sop_name,
-                )
-            )
-
-    # Find .py files in scripts/ subdirectory
-    scripts_dir = sop_folder / 'scripts'
-    if scripts_dir.exists() and scripts_dir.is_dir():
-        for py_file in scripts_dir.glob('*.py'):
-            if py_file.name != '__init__.py':
-                scripts.append(
-                    SOPScript(
-                        name=py_file.stem,
-                        path=py_file.resolve(),
-                        sop_name=sop_name,
-                    )
-                )
-
-    return scripts
-
+    # Check if there is a toolset.py file in SOP folder root
+    if (sop_folder / 'tools' / 'toolset.py').exists():
+        return True
+    return False
 
 def discover_sops(
     directories: Sequence[str | Path],
@@ -302,7 +273,7 @@ def discover_sops(
 
                 # Discover resources and scripts
                 resources = _discover_resources(sop_folder)
-                scripts = _discover_scripts(sop_folder, name)
+                has_toolset = _check_toolset(sop_folder, name)
 
                 # Create SOP
                 sop = SOP(
@@ -310,8 +281,8 @@ def discover_sops(
                     path=sop_folder.resolve(),
                     metadata=metadata,
                     content=instructions,
-                    resources=resources,
-                    scripts=scripts,
+                    has_toolset=has_toolset,
+                    resources=resources
                 )
 
                 sops.append(sop)
@@ -343,6 +314,15 @@ def _is_safe_path(base_path: Path, target_path: Path) -> bool:
         return True
     except ValueError:
         return False
+
+def _import_toolset(toolset_path: Path) -> FunctionToolset:
+    """Import the toolset.py file and return a FunctionToolset object.
+    """
+    spec = importlib.util.spec_from_file_location(toolset_path.stem, str(toolset_path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, 'ts')
+
 
 async def run_from_file(file_path: Path, **kwargs):
     """
@@ -476,6 +456,13 @@ class SOPsToolset(FunctionToolset):
         )
         self._sops = {sop.name: sop for sop in sops}
 
+    def _get_toolset(self, sop_name: str) -> FunctionToolset:
+        """Load the python module toolset.py and return a FunctionToolset object.
+        """
+        toolset_path = self._sops[sop_name].path / 'tools' / 'toolset.py'
+        toolset = _import_toolset(toolset_path)
+        return toolset
+
     def _register_tools(self) -> None:  # noqa: C901
         """Register SOP management tools with the toolset.
 
@@ -541,11 +528,12 @@ class SOPsToolset(FunctionToolset):
                     lines.append(f'- {resource.name}')
                 lines.append('')
 
-            # Add scripts list if available
-            if sop.scripts:
-                lines.append('**Available Scripts:**')
-                for script in sop.scripts:
-                    lines.append(f'- {script.name}')
+            # Add toolset if available
+            if sop.has_toolset:
+                lines.append('**Available Tools:**')
+                toolset = self._get_toolset(sop_name)
+                for tool in toolset.tools.keys():
+                    lines.append(f'- {tool}')
                 lines.append('')
 
             lines.append('---')

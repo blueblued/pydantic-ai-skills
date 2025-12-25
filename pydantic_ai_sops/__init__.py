@@ -41,7 +41,7 @@ from pydantic_ai_sops.exceptions import (
     SOPValidationError,
 )
 from pydantic_ai_sops.toolset import SOPsToolset, discover_sops, parse_sop_md
-from pydantic_ai_sops.types import SOP, SOPMetadata, SOPResource, SOPScript
+from pydantic_ai_sops.types import SOP, SOPMetadata, SOPResource
 
 __all__ = [
     # Main toolset
@@ -50,7 +50,6 @@ __all__ = [
     'SOP',
     'SOPMetadata',
     'SOPResource',
-    'SOPScript',
     # Exceptions
     'SOPException',
     'SOPNotFoundError',

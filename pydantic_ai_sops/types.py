@@ -7,6 +7,7 @@ their metadata, resources, and scripts.
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from pydantic_ai.toolsets import FunctionToolset
 
 
 @dataclass
@@ -43,23 +44,23 @@ class SOPResource:
     content: str | None = None
 
 
-@dataclass
-class SOPScript:
-    """An executable script within a SOP.
+# @dataclass
+# class SOPScript:
+#     """An executable script within a SOP.
 
-    Script-based tools: Executable Python scripts in scripts/ directory
-    or directly in the SOP directory.
-    Can be executed via SOPsToolset.run_sop_script() tool.
+#     Script-based tools: Executable Python scripts in scripts/ directory
+#     or directly in the SOP directory.
+#     Can be executed via SOPsToolset.run_sop_script() tool.
 
-    Attributes:
-        name: Script name without .py extension.
-        path: Absolute path to the script file.
-        sop_name: Parent SOP name.
-    """
+#     Attributes:
+#         name: Script name without .py extension.
+#         path: Absolute path to the script file.
+#         sop_name: Parent SOP name.
+#     """
 
-    name: str
-    path: Path
-    sop_name: str
+#     name: str
+#     path: Path
+#     sop_name: str
 
 
 @dataclass
@@ -71,16 +72,16 @@ class SOP:
         path: Absolute path to SOP directory.
         metadata: Parsed metadata from SOP.md.
         content: Main content from SOP.md (without frontmatter).
+        has_toolset: True if a toolset is found in the tools directory (tools/toolset.py), False otherwise.
         resources: Optional resource files (FORMS.md, etc.).
-        scripts: Available scripts in the SOP directory or scripts/ subdirectory.
     """
 
     name: str
     path: Path
     metadata: SOPMetadata
     content: str
+    has_toolset: bool = False
     resources: list[SOPResource] = field(default_factory=list)
-    scripts: list[SOPScript] = field(default_factory=list)
 
     @property
     def description(self) -> str:
