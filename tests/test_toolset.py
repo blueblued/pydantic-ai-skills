@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pydantic_ai_skills import SkillsToolset
+from pydantic_ai_skills import SOPsToolset
 from pydantic_ai_skills.exceptions import SkillNotFoundError
 
 
@@ -75,7 +75,7 @@ print(' '.join(sys.argv[1:]))
 
 def test_toolset_initialization(sample_skills_dir: Path) -> None:
     """Test SkillsToolset initialization."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     assert len(toolset.skills) == 3
     assert 'skill-one' in toolset.skills
@@ -85,7 +85,7 @@ def test_toolset_initialization(sample_skills_dir: Path) -> None:
 
 def test_toolset_get_skill(sample_skills_dir: Path) -> None:
     """Test getting a specific skill."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     skill = toolset.get_skill('skill-one')
     assert skill.name == 'skill-one'
@@ -94,7 +94,7 @@ def test_toolset_get_skill(sample_skills_dir: Path) -> None:
 
 def test_toolset_get_skill_not_found(sample_skills_dir: Path) -> None:
     """Test getting a non-existent skill."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     with pytest.raises(SkillNotFoundError, match="Skill 'nonexistent' not found"):
         toolset.get_skill('nonexistent')
@@ -103,7 +103,7 @@ def test_toolset_get_skill_not_found(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_list_skills_tool(sample_skills_dir: Path) -> None:
     """Test the list_skills tool by checking skills were loaded."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Verify all three skills were discovered
     assert len(toolset.skills) == 3
@@ -120,7 +120,7 @@ async def test_list_skills_tool(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_load_skill_tool(sample_skills_dir: Path) -> None:
     """Test the load_skill tool."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # The tools are internal, so we test via the public methods
     # We can check that the skills were loaded correctly
@@ -134,7 +134,7 @@ async def test_load_skill_tool(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_load_skill_not_found(sample_skills_dir: Path) -> None:
     """Test loading a non-existent skill."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Test that nonexistent skill raises an error
     with pytest.raises(SkillNotFoundError):
@@ -144,7 +144,7 @@ async def test_load_skill_not_found(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_skill_resource_tool(sample_skills_dir: Path) -> None:
     """Test the read_skill_resource tool."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Test that skill-two has the expected resources
     skill = toolset.get_skill('skill-two')
@@ -163,7 +163,7 @@ async def test_read_skill_resource_tool(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_read_skill_resource_not_found(sample_skills_dir: Path) -> None:
     """Test reading a non-existent resource."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Test skill with no resources
     skill_one = toolset.get_skill('skill-one')
@@ -178,7 +178,7 @@ async def test_read_skill_resource_not_found(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_run_skill_script_tool(sample_skills_dir: Path) -> None:
     """Test the run_skill_script tool."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Test that skill-three has scripts
     skill = toolset.get_skill('skill-three')
@@ -198,7 +198,7 @@ async def test_run_skill_script_tool(sample_skills_dir: Path) -> None:
 @pytest.mark.asyncio
 async def test_run_skill_script_not_found(sample_skills_dir: Path) -> None:
     """Test running a non-existent script."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     # Test skill with no scripts
     skill_one = toolset.get_skill('skill-one')
@@ -212,7 +212,7 @@ async def test_run_skill_script_not_found(sample_skills_dir: Path) -> None:
 
 def test_get_skills_system_prompt(sample_skills_dir: Path) -> None:
     """Test generating the system prompt."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     prompt = toolset.get_skills_system_prompt()
 
@@ -235,7 +235,7 @@ def test_get_skills_system_prompt(sample_skills_dir: Path) -> None:
 
 def test_get_skills_system_prompt_empty() -> None:
     """Test system prompt with no skills."""
-    toolset = SkillsToolset(directories=[], auto_discover=False)
+    toolset = SOPsToolset(directories=[], auto_discover=False)
 
     prompt = toolset.get_skills_system_prompt()
     assert prompt == ''
@@ -243,7 +243,7 @@ def test_get_skills_system_prompt_empty() -> None:
 
 def test_toolset_refresh(sample_skills_dir: Path) -> None:
     """Test refreshing skills."""
-    toolset = SkillsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_skills_dir])
 
     initial_count = len(toolset.skills)
 

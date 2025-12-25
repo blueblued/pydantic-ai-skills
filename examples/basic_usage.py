@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pydantic_ai import Agent
 
-from pydantic_ai_skills import SkillsToolset
+from pydantic_ai_skills import SOPsToolset
 
 
 async def main() -> None:
@@ -18,7 +18,7 @@ async def main() -> None:
     skills_dir = Path(__file__).parent / 'skills'
 
     # Initialize Skills Toolset
-    skills_toolset = SkillsToolset(directories=[skills_dir])
+    skills_toolset = SOPsToolset(directories=[skills_dir])
 
     # Create agent with skills
     agent = Agent(

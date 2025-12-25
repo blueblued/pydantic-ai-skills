@@ -40,12 +40,12 @@ from pydantic_ai_skills.exceptions import (
     SkillScriptExecutionError,
     SkillValidationError,
 )
-from pydantic_ai_skills.toolset import SkillsToolset, discover_skills, parse_skill_md
+from pydantic_ai_skills.toolset import SOPsToolset, discover_skills, parse_skill_md
 from pydantic_ai_skills.types import Skill, SkillMetadata, SkillResource, SkillScript
 
 __all__ = [
     # Main toolset
-    'SkillsToolset',
+    'SOPsToolset',
     # Types
     'Skill',
     'SkillMetadata',

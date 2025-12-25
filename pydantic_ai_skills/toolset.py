@@ -401,35 +401,35 @@ async def run_from_file(file_path: Path, **kwargs):
     
     return await func(**kwargs)
 
-class SkillsToolset(FunctionToolset):
-    """Pydantic AI toolset for automatic skill discovery and integration.
+class SOPsToolset(FunctionToolset):
+    """Pydantic AI toolset for automatic SOP discovery and integration.
 
     This is the primary interface for integrating skills with Pydantic AI agents.
     It implements the toolset protocol and automatically discovers, loads, and
-    registers skills from specified directories.
+    registers SOPs from specified directories.
 
     Provides the following tools to agents:
-    - list_skills(): List all available skills
-    - activate_skill(skill_name): Activate a skill and load its instructions
-    - read_skill_resource(skill_name, resource_name): Read a skill resource file
-    - run_skill_script(skill_name, script_name, **kwargs): Execute a skill script
+    - list_sops(): List all available SOPs
+    - activate_sop(sop_name): Activate a SOP and load its instructions
+    - read_sop_resource(sop_name, resource_name): Read a SOP resource file
+    - run_sop_script(sop_name, script_name, **kwargs): Execute a SOP script
 
     Example:
         ```python
         from pydantic_ai import Agent
-        from pydantic_ai_skills import SkillsToolset
+        from pydantic_ai_skills import SOPsToolset
 
-        skills_toolset = SkillsToolset(directories=["./skills"])
+        sops_toolset = SOPsToolset(directories=["./sops"])
 
         agent = Agent(
             model='openai:gpt-4o',
             instructions="You are a helpful assistant.",
-            toolsets=[skills_toolset]
+            toolsets=[sops_toolset]
         )
 
         @agent.system_prompt
         def add_skills_prompt() -> str:
-            return skills_toolset.get_skills_system_prompt()
+            return sops_toolset.get_sops_system_prompt()
         ```
     """
 
@@ -443,7 +443,7 @@ class SkillsToolset(FunctionToolset):
         script_timeout: int = 30,
         python_executable: str | Path | None = None,
     ) -> None:
-        """Initialize the skills toolset.
+        """Initialize the SOPs toolset.
 
         Args:
             directories: List of directory paths to search for skills.
