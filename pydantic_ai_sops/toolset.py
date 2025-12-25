@@ -142,7 +142,7 @@ def parse_sop_md(content: str) -> tuple[dict[str, Any], str]:
 def _discover_resources(sop_folder: Path) -> list[SOPResource]:
     """Discover resource files in a SOP folder.
 
-    Resources are markdown files other than SKILL.md, plus any files
+    Resources are markdown files other than SOP.md, plus any files
     in a resources/ subdirectory.
 
     Args:
@@ -153,9 +153,9 @@ def _discover_resources(sop_folder: Path) -> list[SOPResource]:
     """
     resources: list[SOPResource] = []
 
-    # Find .md files other than SKILL.md (FORMS.md, REFERENCE.md, etc.)
+    # Find .md files other than SOP.md (FORMS.md, REFERENCE.md, etc.)
     for md_file in sop_folder.glob('*.md'):
-        if md_file.name.upper() != 'SKILL.MD':
+        if md_file.name.upper() != 'SOP.MD':
             resources.append(
                 SOPResource(
                     name=md_file.name,
@@ -183,7 +183,7 @@ def _discover_scripts(sop_folder: Path, sop_name: str) -> list[SOPScript]:
     """Discover executable scripts in a SOP folder.
 
     Looks for Python scripts in:
-    - Directly in the skill folder (*.py)
+    - Directly in the SOP folder (*.py)
     - In a scripts/ subdirectory
 
     Args:
@@ -195,7 +195,7 @@ def _discover_scripts(sop_folder: Path, sop_name: str) -> list[SOPScript]:
     """
     scripts: list[SOPScript] = []
 
-    # Find .py files in skill folder root (excluding __init__.py)
+    # Find .py files in SOP folder root (excluding __init__.py)
     for py_file in sop_folder.glob('*.py'):
         if py_file.name != '__init__.py':
             scripts.append(
@@ -228,7 +228,7 @@ def discover_sops(
 ) -> list[SOP]:
     """Discover SOPs from filesystem directories.
 
-    Searches for SKILL.md files in the given directories and loads
+    Searches for SOP.md files in the given directories and loads
     SOP metadata and structure.
 
     Args:
@@ -254,7 +254,7 @@ def discover_sops(
             logger.warning('SOPs path is not a directory: %s', dir_path)
             continue
 
-        # Find all SKILL.md files (recursive search)
+        # Find all SOP.md files (recursive search)
         for sop_file in dir_path.glob('**/SOP.md'):
             try:
                 sop_folder = sop_file.parent
@@ -396,7 +396,7 @@ async def run_from_file(file_path: Path, **kwargs):
             raise TypeError(
                 f"Unexpected parameters: {unexpected_str}. "
                 f"This script only accepts these parameters: {expected_params}. "
-                f"Please check the skill documentation and use exactly the parameter names specified."
+                f"Please check the SOP documentation and use exactly the parameter names specified."
             )
     
     return await func(**kwargs)

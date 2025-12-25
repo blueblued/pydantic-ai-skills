@@ -1,21 +1,21 @@
-"""Exception classes for pydantic-ai-skills."""
+"""Exception classes for pydantic-ai-sops."""
 
 
-class SkillException(Exception):
-    """Base exception for skill-related errors."""
+class SOPException(Exception):
+    """Base exception for SOP-related errors."""
 
 
-class SkillNotFoundError(SkillException):
-    """Skill not found in any source."""
+class SOPNotFoundError(SOPException):
+    """SOP not found in any source."""
 
 
-class SkillValidationError(SkillException):
-    """Skill validation failed."""
+class SOPValidationError(SOPException):
+    """SOP validation failed."""
 
 
-class SkillResourceLoadError(SkillException):
-    """Failed to load skill resources."""
+class SOPResourceLoadError(SOPException):
+    """Failed to load SOP resources."""
 
 
-class SkillScriptExecutionError(SkillException):
-    """Skill script execution failed."""
+class SOPScriptExecutionError(SOPException):
+    """SOP script execution failed."""
