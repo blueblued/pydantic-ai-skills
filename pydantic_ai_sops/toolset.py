@@ -321,65 +321,7 @@ def _import_toolset(toolset_path: Path) -> FunctionToolset:
     spec = importlib.util.spec_from_file_location(toolset_path.stem, str(toolset_path))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return getattr(module, 'ts')
-
-
-async def run_from_file(file_path: Path, **kwargs):
-    """
-    从指定文件加载并运行函数,默认调用run函数
-    
-    Args:
-        file_path: py文件完整路径(如：Path('/path/to/my_module.py'))
-        kwargs: 传递给函数的字典形式的可变参数
-
-    Example:
-        ```python
-        return run_from_file(
-            Path('/path/to/my_module.py'), # 完整路径
-            arg1=value1, arg2=value2, ... # 关键字参数，可以是任意多个
-        )
-    ```
-    """
-    import inspect
-    
-    # 将文件所在目录添加到sys.path
-    module_dir = file_path.parent
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
-    
-    # 获取模块名（不含.py）
-    module_name = file_path.stem
-    
-    # 导入模块
-    spec = importlib.util.spec_from_file_location(module_name, str(file_path))
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    
-    # 获取并运行函数
-    func = getattr(module, 'run')
-    
-    # 验证参数是否匹配函数签名
-    sig = inspect.signature(func)
-    param_names = set(sig.parameters.keys())
-    
-    # 检查是否有 **kwargs 参数（VAR_KEYWORD）
-    has_var_keyword = any(param.kind == inspect.Parameter.VAR_KEYWORD 
-                         for param in sig.parameters.values())
-    
-    if not has_var_keyword:
-        # 如果没有 **kwargs，检查是否有意外的参数
-        unexpected_params = set(kwargs.keys()) - param_names
-        if unexpected_params:
-            expected_params = ', '.join(sorted(param_names))
-            unexpected_str = ', '.join(sorted(unexpected_params))
-            raise TypeError(
-                f"Unexpected parameters: {unexpected_str}. "
-                f"This script only accepts these parameters: {expected_params}. "
-                f"Please check the SOP documentation and use exactly the parameter names specified."
-            )
-    
-    return await func(**kwargs)
+    return getattr(module, 'sop_ts')
 
 class SOPsToolset(FunctionToolset):
     """Pydantic AI toolset for automatic SOP discovery and integration.
@@ -528,9 +470,9 @@ class SOPsToolset(FunctionToolset):
             # Add toolset if available
             if sop.has_toolset:
                 lines.append('**Available Tools:**')
-                toolset = self._get_toolset(sop_name)
-                ctx.deps['sop_toolset'] = toolset
-                for tool in toolset.tools.keys():
+                sop_ts = self._get_toolset(sop_name)
+                ctx.deps['sop_toolset'] = sop_ts
+                for tool in sop_ts.tools.keys():
                     lines.append(f'- {tool}')
                 lines.append('')
 
