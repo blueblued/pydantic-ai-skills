@@ -392,7 +392,6 @@ class SOPsToolset(FunctionToolset):
     - list_sops(): List all available SOPs
     - activate_sop(sop_name): Activate a SOP and load its instructions
     - read_sop_resource(sop_name, resource_name): Read a SOP resource file
-    - run_sop_script(sop_name, script_name, **kwargs): Execute a SOP script
 
     Example:
         ```python
@@ -470,7 +469,6 @@ class SOPsToolset(FunctionToolset):
         - list_sops: List available SOPs
         - activate_sop: Activate a SOP and load its instructions
         - read_sop_resource: Read SOP resources
-        - run_sop_script: Execute SOP scripts
         """
 
         @self.tool
@@ -497,14 +495,13 @@ class SOPsToolset(FunctionToolset):
             """Activate a SOP and load its full instructions, making it the current available SOP.
 
             Always activate the SOP before using read_sop_resource
-            or run_sop_script to understand the SOP's capabilities, available
-            resources, scripts, and their usage patterns.
+            to understand the SOP's capabilities, available resources, and their usage patterns.
 
             Args:
                 sop_name: Name of the SOP to activate.
 
             Returns:
-                Full SOP instructions including available resources and scripts.
+                Full SOP instructions including available resources.
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
             if sop_name not in self._sops:
@@ -532,6 +529,7 @@ class SOPsToolset(FunctionToolset):
             if sop.has_toolset:
                 lines.append('**Available Tools:**')
                 toolset = self._get_toolset(sop_name)
+                ctx.deps['sop_toolset'] = toolset
                 for tool in toolset.tools.keys():
                     lines.append(f'- {tool}')
                 lines.append('')
@@ -592,70 +590,6 @@ class SOPsToolset(FunctionToolset):
                 logger.error('Failed to read resource %s: %s', resource_name, e)
                 raise SOPResourceLoadError(f"Failed to read resource '{resource_name}': {e}") from e
 
-        @self.tool
-        async def run_sop_script(  # noqa: D417
-            ctx: RunContext[Any],
-            sop_name: str,
-            script_name: str,
-            **kwargs
-        ) -> str:
-            """Execute a SOP script with keyword arguments.
-
-            Call activate_sop first to understand the script's expected arguments,
-            usage patterns, and example invocations. Running scripts without
-            loading instructions first will likely fail.
-
-            Args:
-                sop_name: Name of the SOP.
-                script_name: The script name (without .py extension).
-                kwargs: Optional keyword arguments.
-
-            Returns:
-                The script's output (stdout and stderr combined).
-            """
-            _ = ctx  # Required by Pydantic AI toolset protocol
-            print(f"LOG: sop_name: {sop_name}, ctx.deps: {ctx.deps}, kwargs: {kwargs}.")    
-            if sop_name not in self._sops:
-                return f"Error: SOP '{sop_name}' not found."
-
-            sop = self._sops[sop_name]
-
-            # Find the script
-            script = None
-            for s in sop.scripts:
-                if s.name == script_name:
-                    script = s
-                    break
-
-            if script is None:
-                available = [s.name for s in sop.scripts]
-                return (
-                    f"Error: Script '{script_name}' not found in SOP '{sop_name}'. Available scripts: {available}"
-                )
-
-            # Security check
-            if not _is_safe_path(sop.path, script.path):
-                logger.warning('Path traversal attempt detected: %s in %s', script_name, sop_name)
-                return 'Error: Script path escapes SOP directory.'
-
-            # Build command
-            logger.info('Running script: %s with kwargs: %s', script_name, sop_name)
-            try:
-                # Use run_from_file to run the script
-                return await run_from_file(script.path, **kwargs)
-
-            except OSError as e:
-                logger.error('Failed to execute script %s: %s', script_name, e)
-                raise SOPScriptExecutionError(f"Failed to execute script '{script_name}': {e}") from e
-            except TypeError as e:
-                logger.error('Type error occurred while executing script %s: %s', script_name, e)
-                # raise 让agent重试
-                raise ModelRetry(f"Type error occurred while executing script '{script_name}': {e}") from e
-            except Exception as e:
-                logger.error('Unknown error occurred while executing script %s: %s', script_name, e)
-                # 这里不重试
-                raise SOPScriptExecutionError(f"Unknown error occurred while executing script '{script_name}': {e}") from e
-
     def _extract_script_args(self, sop_content: str, script_name: str) -> str:
         """Extract script arguments from SOP content.
         
@@ -708,14 +642,13 @@ class SOPsToolset(FunctionToolset):
             '# SOPs',
             '',
             'You have access to SOPs that extend your capabilities. ',
-            'SOPs are modular packages containing instructions, resources, and scripts for specialized tasks.',
+            'SOPs are modular packages containing instructions, resources, and toolset for specialized tasks.',
             'SOPs are in standby mode by default. You must use the `activate_sop` tool to activate a SOP and make it the current available SOP.',
-            '**State management**: Only one SOP can be available at a time. When you activate a new SOP, it becomes the current available SOP and replaces any previously activated SOP. Only the currently available SOP can be used for `read_sop_resource` and `run_sop_script`.',
+            '**State management**: Only one SOP can be available at a time. When you activate a new SOP, it becomes the current available SOP and the SOP\'s tools become available to you.',
             '',
-            '**You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs:**',
-            '- `activate_sop(sop_name)` - to activate a SOP (load its instructions and make it the current available SOP)',
+            '**You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs. You can use `list_sops()` to list all available SOPs.**',
+            '- `activate_sop(sop_name)` - to activate a SOP (load its instructions and make it the current available SOP and its tools become available to you)',
             '- `read_sop_resource(sop_name, resource_name)` - to read SOP resources',
-            '- `run_sop_script(sop_name, script_name, **kwargs)` - to execute SOP scripts',
             '',
             '## Standby SOPs',
             '',
@@ -737,27 +670,18 @@ class SOPsToolset(FunctionToolset):
             [
                 '## How to Use SOPs',
                 '',
-                '**REMINDER: SOPs are NOT callable. You MUST use SOP tools (activate_sop, run_sop_script, etc.) to interact with SOPs.**',
+                '**REMINDER: SOPs are NOT callable. You MUST use SOP tools (activate_sop, read_sop_resource, etc.) to interact with SOPs.**',
                 '',
                 '**Progressive disclosure**: Activate SOPs only when needed.',
                 '',
                 '1. **When a SOP is relevant to the current task**: Use `activate_sop(sop_name)` to activate the SOP and read its full instructions.',
                 '2. **For additional documentation**: Use `read_sop_resource(sop_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
-                '3. **To execute SOP scripts**: Use `run_sop_script(sop_name, script_name, **kwargs)` with appropriate keyword arguments.',
                 '',
                 '**CRITICAL: Parameter Requirements**',
                 '',
-                'Each SOP script has SPECIFIC parameter requirements listed above. When calling `run_sop_script`:',
-                '',
-                '1. **Use EXACTLY the parameter names shown above** for each script',
-                '2. **DO NOT invent new parameter names**',
-                '3. **DO NOT split parameters**',
-                '4. **Parameter names are case-sensitive**: Use exact spelling from the list above',
-                '',
                 '**Best practices**:',
                 '- Select SOPs based on task relevance and descriptions listed above',
-                '- Check the parameter list above BEFORE calling `run_sop_script`',
-                '- If you need more details, call `activate_sop(sop_name)` to activate and read full instructions',
+                '- If you need more details, call `activate_sop(sop_name)` to activate and read full instructions and resources',
                 '',
             ]
         )
