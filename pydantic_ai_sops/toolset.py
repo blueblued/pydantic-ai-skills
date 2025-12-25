@@ -1,16 +1,16 @@
-"""Skills toolset for pydantic-ai-skills.
+"""SOPs toolset for pydantic-ai-sops.
 
-Skills are modular packages that extend agent capabilities. Each skill is a folder
-containing a SKILL.md file with YAML frontmatter and Markdown instructions, along
+SOPs are modular packages that extend agent capabilities. Each SOP is a folder
+containing a SOP.md file with YAML frontmatter and Markdown instructions, along
 with optional resource files (documents, scripts, etc.).
 
-Progressive disclosure: Only skill metadata is exposed initially. The full
-instructions are loaded on-demand when the agent calls the activate_skill tool.
+Progressive disclosure: Only SOP metadata is exposed initially. The full
+instructions are loaded on-demand when the agent calls the activate_sop tool.
 
 This module provides:
-- SkillsToolset: A Pydantic AI toolset with four tools for skill management
-- Skill discovery from filesystem directories
-- YAML frontmatter parsing for SKILL.md files
+- SOPsToolset: A Pydantic AI toolset with four tools for SOP management
+- SOP discovery from filesystem directories
+- YAML frontmatter parsing for SOP.md files
 - Safe script execution with path validation
 """
 
@@ -34,35 +34,35 @@ from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets import FunctionToolset
 
-from pydantic_ai_skills.exceptions import (
-    SkillNotFoundError,
-    SkillResourceLoadError,
-    SkillScriptExecutionError,
-    SkillValidationError,
+from pydantic_ai_sops.exceptions import (
+    SOPNotFoundError,
+    SOPResourceLoadError,
+    SOPScriptExecutionError,
+    SOPValidationError,
 )
-from pydantic_ai_skills.types import (
-    Skill,
-    SkillMetadata,
-    SkillResource,
-    SkillScript,
+from pydantic_ai_sops.types import (
+    SOP,
+    SOPMetadata,
+    SOPResource,
+    SOPScript,
 )
 
-logger = logging.getLogger('pydantic-ai-skills')
+logger = logging.getLogger('pydantic-ai-sops')
 
 # Anthropic's naming convention: lowercase letters, numbers, and hyphens only
-SKILL_NAME_PATTERN = re.compile(r'^[a-z0-9-]+$')
+SOP_NAME_PATTERN = re.compile(r'^[a-z0-9-]+$')
 RESERVED_WORDS = {'anthropic', 'claude'}
 
 
-def _validate_skill_metadata(
+def _validate_sop_metadata(
     frontmatter: dict[str, Any],
     instructions: str,
 ) -> list[str]:
-    """Validate skill metadata against Anthropic's requirements.
+    """Validate SOP metadata against Anthropic's requirements.
 
     Args:
         frontmatter: Parsed YAML frontmatter.
-        instructions: The skill instructions content.
+        instructions: The SOP instructions content.
 
     Returns:
         List of validation warnings (empty if no issues).
@@ -76,43 +76,43 @@ def _validate_skill_metadata(
     if name:
         # Check length first to prevent regex on excessively long strings
         if len(name) > 64:
-            warnings_list.append(f"Skill name '{name}' exceeds 64 characters ({len(name)} chars)")
+            warnings_list.append(f"SOP name '{name}' exceeds 64 characters ({len(name)} chars)")
         # Only run regex if name is reasonable length (defense in depth)
-        elif not SKILL_NAME_PATTERN.match(name):
-            warnings_list.append(f"Skill name '{name}' should contain only lowercase letters, numbers, and hyphens")
+        elif not SOP_NAME_PATTERN.match(name):
+            warnings_list.append(f"SOP name '{name}' should contain only lowercase letters, numbers, and hyphens")
         # Check for reserved words
         for reserved in RESERVED_WORDS:
             if reserved in name:
-                warnings_list.append(f"Skill name '{name}' contains reserved word '{reserved}'")
+                warnings_list.append(f"SOP name '{name}' contains reserved word '{reserved}'")
 
     # Validate description
     if description and len(description) > 1024:
-        warnings_list.append(f'Skill description exceeds 1024 characters ({len(description)} chars)')
+        warnings_list.append(f'SOP description exceeds 1024 characters ({len(description)} chars)')
 
     # Validate instructions length (Anthropic recommends under 500 lines)
     lines = instructions.split('\n')
     if len(lines) > 500:
         warnings_list.append(
-            f'SKILL.md body exceeds recommended 500 lines ({len(lines)} lines). '
+            f'SOP.md body exceeds recommended 500 lines ({len(lines)} lines). '
             f'Consider splitting into separate resource files.'
         )
 
     return warnings_list
 
 
-def parse_skill_md(content: str) -> tuple[dict[str, Any], str]:
-    """Parse a SKILL.md file into frontmatter and instructions.
+def parse_sop_md(content: str) -> tuple[dict[str, Any], str]:
+    """Parse a SOP.md file into frontmatter and instructions.
 
     Uses PyYAML for robust YAML parsing.
 
     Args:
-        content: Full content of the SKILL.md file.
+        content: Full content of the SOP.md file.
 
     Returns:
         Tuple of (frontmatter_dict, instructions_markdown).
 
     Raises:
-        SkillValidationError: If YAML parsing fails.
+        SOPValidationError: If YAML parsing fails.
     """
     # Match YAML frontmatter between --- delimiters
     frontmatter_pattern = r'^---\s*\n(.*?)^---\s*\n'
@@ -134,43 +134,43 @@ def parse_skill_md(content: str) -> tuple[dict[str, Any], str]:
         if frontmatter is None:
             frontmatter = {}
     except yaml.YAMLError as e:
-        raise SkillValidationError(f'Failed to parse YAML frontmatter: {e}') from e
+        raise SOPValidationError(f'Failed to parse YAML frontmatter: {e}') from e
 
     return frontmatter, instructions
 
 
-def _discover_resources(skill_folder: Path) -> list[SkillResource]:
-    """Discover resource files in a skill folder.
+def _discover_resources(sop_folder: Path) -> list[SOPResource]:
+    """Discover resource files in a SOP folder.
 
     Resources are markdown files other than SKILL.md, plus any files
     in a resources/ subdirectory.
 
     Args:
-        skill_folder: Path to the skill directory.
+        sop_folder: Path to the SOP directory.
 
     Returns:
-        List of discovered SkillResource objects.
+        List of discovered SOPResource objects.
     """
-    resources: list[SkillResource] = []
+    resources: list[SOPResource] = []
 
     # Find .md files other than SKILL.md (FORMS.md, REFERENCE.md, etc.)
-    for md_file in skill_folder.glob('*.md'):
+    for md_file in sop_folder.glob('*.md'):
         if md_file.name.upper() != 'SKILL.MD':
             resources.append(
-                SkillResource(
+                SOPResource(
                     name=md_file.name,
                     path=md_file.resolve(),
                 )
             )
 
     # Find files in resources/ subdirectory if it exists
-    resources_dir = skill_folder / 'resources'
+    resources_dir = sop_folder / 'resources'
     if resources_dir.exists() and resources_dir.is_dir():
         for resource_file in resources_dir.rglob('*'):
             if resource_file.is_file():
-                rel_path = resource_file.relative_to(skill_folder)
+                rel_path = resource_file.relative_to(sop_folder)
                 resources.append(
-                    SkillResource(
+                    SOPResource(
                         name=str(rel_path),
                         path=resource_file.resolve(),
                     )
@@ -179,87 +179,87 @@ def _discover_resources(skill_folder: Path) -> list[SkillResource]:
     return resources
 
 
-def _discover_scripts(skill_folder: Path, skill_name: str) -> list[SkillScript]:
-    """Discover executable scripts in a skill folder.
+def _discover_scripts(sop_folder: Path, sop_name: str) -> list[SOPScript]:
+    """Discover executable scripts in a SOP folder.
 
     Looks for Python scripts in:
     - Directly in the skill folder (*.py)
     - In a scripts/ subdirectory
 
     Args:
-        skill_folder: Path to the skill directory.
-        skill_name: Name of the parent skill.
+        sop_folder: Path to the SOP directory.
+        sop_name: Name of the parent SOP.
 
     Returns:
-        List of discovered SkillScript objects.
+        List of discovered SOPScript objects.
     """
-    scripts: list[SkillScript] = []
+    scripts: list[SOPScript] = []
 
     # Find .py files in skill folder root (excluding __init__.py)
-    for py_file in skill_folder.glob('*.py'):
+    for py_file in sop_folder.glob('*.py'):
         if py_file.name != '__init__.py':
             scripts.append(
-                SkillScript(
+                SOPScript(
                     name=py_file.stem,  # filename without .py
                     path=py_file.resolve(),
-                    skill_name=skill_name,
+                    sop_name=sop_name,
                 )
             )
 
     # Find .py files in scripts/ subdirectory
-    scripts_dir = skill_folder / 'scripts'
+    scripts_dir = sop_folder / 'scripts'
     if scripts_dir.exists() and scripts_dir.is_dir():
         for py_file in scripts_dir.glob('*.py'):
             if py_file.name != '__init__.py':
                 scripts.append(
-                    SkillScript(
+                    SOPScript(
                         name=py_file.stem,
                         path=py_file.resolve(),
-                        skill_name=skill_name,
+                        sop_name=sop_name,
                     )
                 )
 
     return scripts
 
 
-def discover_skills(
+def discover_sops(
     directories: Sequence[str | Path],
     validate: bool = True,
-) -> list[Skill]:
-    """Discover skills from filesystem directories.
+) -> list[SOP]:
+    """Discover SOPs from filesystem directories.
 
     Searches for SKILL.md files in the given directories and loads
-    skill metadata and structure.
+    SOP metadata and structure.
 
     Args:
-        directories: List of directory paths to search for skills.
-        validate: Whether to validate skill structure (requires name and description).
+        directories: List of directory paths to search for SOPs.
+        validate: Whether to validate SOP structure (requires name and description).
 
     Returns:
-        List of discovered Skill objects.
+        List of discovered SOP objects.
 
     Raises:
-        SkillValidationError: If validation is enabled and a skill is invalid.
+        SOPValidationError: If validation is enabled and a SOP is invalid.
     """
-    skills: list[Skill] = []
+    sops: list[SOP] = []
 
-    for skill_dir in directories:
-        dir_path = Path(skill_dir).expanduser().resolve()
+    for sop_dir in directories:
+        dir_path = Path(sop_dir).expanduser().resolve()
 
         if not dir_path.exists():
-            logger.warning('Skills directory does not exist: %s', dir_path)
+            logger.warning('SOPs directory does not exist: %s', dir_path)
             continue
 
         if not dir_path.is_dir():
-            logger.warning('Skills path is not a directory: %s', dir_path)
+            logger.warning('SOPs path is not a directory: %s', dir_path)
             continue
 
         # Find all SKILL.md files (recursive search)
-        for skill_file in dir_path.glob('**/SKILL.md'):
+        for sop_file in dir_path.glob('**/SOP.md'):
             try:
-                skill_folder = skill_file.parent
-                content = skill_file.read_text(encoding='utf-8')
-                frontmatter, instructions = parse_skill_md(content)
+                sop_folder = sop_file.parent
+                content = sop_file.read_text(encoding='utf-8')
+                frontmatter, instructions = parse_sop_md(content)
 
                 # Get required fields
                 name = frontmatter.get('name')
@@ -269,26 +269,26 @@ def discover_skills(
                 if validate:
                     if not name:
                         logger.warning(
-                            'Skill at %s missing required "name" field, skipping',
-                            skill_folder,
+                            'SOP at %s missing required "name" field, skipping',
+                            sop_folder,
                         )
                         continue
                     if not description:
                         logger.warning(
-                            'Skill "%s" at %s missing "description" field',
+                            'SOP "%s" at %s missing "description" field',
                             name,
-                            skill_folder,
+                            sop_folder,
                         )
 
                 # Use folder name if name not provided
                 if not name:
-                    name = skill_folder.name
+                    name = sop_folder.name
 
                 # Extract extra metadata fields
                 extra = {k: v for k, v in frontmatter.items() if k not in ('name', 'description')}
 
                 # Create metadata
-                metadata = SkillMetadata(
+                metadata = SOPMetadata(
                     name=name,
                     description=description,
                     extra=extra,
@@ -296,36 +296,36 @@ def discover_skills(
 
                 # Validate metadata (log warnings)
                 if validate:
-                    validation_warnings = _validate_skill_metadata(frontmatter, instructions)
+                    validation_warnings = _validate_sop_metadata(frontmatter, instructions)
                     for warning in validation_warnings:
-                        logger.warning('Skill "%s" at %s: %s', name, skill_folder, warning)
+                        logger.warning('SOP "%s" at %s: %s', name, sop_folder, warning)
 
                 # Discover resources and scripts
-                resources = _discover_resources(skill_folder)
-                scripts = _discover_scripts(skill_folder, name)
+                resources = _discover_resources(sop_folder)
+                scripts = _discover_scripts(sop_folder, name)
 
-                # Create skill
-                skill = Skill(
+                # Create SOP
+                sop = SOP(
                     name=name,
-                    path=skill_folder.resolve(),
+                    path=sop_folder.resolve(),
                     metadata=metadata,
                     content=instructions,
                     resources=resources,
                     scripts=scripts,
                 )
 
-                skills.append(skill)
-                logger.debug('Discovered skill: %s at %s', name, skill_folder)
+                sops.append(sop)
+                logger.debug('Discovered SOP: %s at %s', name, sop_folder)
 
-            except SkillValidationError as e:
-                logger.exception('Skill validation error in %s: %s', skill_file, e)
+            except SOPValidationError as e:
+                logger.exception('SOP validation error in %s: %s', sop_file, e)
                 raise
             except OSError as e:
-                logger.warning('Failed to load skill from %s: %s', skill_file, e)
+                logger.warning('Failed to load SOP from %s: %s', sop_file, e)
                 continue
 
-    logger.info('Discovered %d skills from %d directories', len(skills), len(directories))
-    return skills
+    logger.info('Discovered %d SOPs from %d directories', len(sops), len(directories))
+    return sops
 
 
 def _is_safe_path(base_path: Path, target_path: Path) -> bool:
@@ -404,7 +404,7 @@ async def run_from_file(file_path: Path, **kwargs):
 class SOPsToolset(FunctionToolset):
     """Pydantic AI toolset for automatic SOP discovery and integration.
 
-    This is the primary interface for integrating skills with Pydantic AI agents.
+    This is the primary interface for integrating SOPs with Pydantic AI agents.
     It implements the toolset protocol and automatically discovers, loads, and
     registers SOPs from specified directories.
 
@@ -417,7 +417,7 @@ class SOPsToolset(FunctionToolset):
     Example:
         ```python
         from pydantic_ai import Agent
-        from pydantic_ai_skills import SOPsToolset
+        from pydantic_ai_sops import SOPsToolset
 
         sops_toolset = SOPsToolset(directories=["./sops"])
 
@@ -428,7 +428,7 @@ class SOPsToolset(FunctionToolset):
         )
 
         @agent.system_prompt
-        def add_skills_prompt() -> str:
+        def add_sops_prompt() -> str:
             return sops_toolset.get_sops_system_prompt()
         ```
     """
@@ -439,16 +439,16 @@ class SOPsToolset(FunctionToolset):
         *,
         auto_discover: bool = True,
         validate: bool = True,
-        toolset_id: str = 'skills',
+        toolset_id: str = 'sops',
         script_timeout: int = 30,
         python_executable: str | Path | None = None,
     ) -> None:
         """Initialize the SOPs toolset.
 
         Args:
-            directories: List of directory paths to search for skills.
-            auto_discover: Automatically discover and load skills on init.
-            validate: Validate skill structure and metadata on load.
+            directories: List of directory paths to search for SOPs.
+            auto_discover: Automatically discover and load SOPs on init.
+            validate: Validate SOP structure and metadata on load.
             toolset_id: Unique identifier for this toolset.
             script_timeout: Timeout in seconds for script execution (default: 30).
             python_executable: Path to Python executable for running scripts.
@@ -460,165 +460,165 @@ class SOPsToolset(FunctionToolset):
         self._validate = validate
         self._script_timeout = script_timeout
         self._python_executable = str(python_executable) if python_executable else sys.executable
-        self._skills: dict[str, Skill] = {}
+        self._sops: dict[str, SOP] = {}
 
         if auto_discover:
-            self._discover_skills()
+            self._discover_sops()
 
         # Register tools
         self._register_tools()
 
-    def _discover_skills(self) -> None:
-        """Discover and load skills from configured directories."""
-        skills = discover_skills(
+    def _discover_sops(self) -> None:
+        """Discover and load SOPs from configured directories."""
+        sops = discover_sops(
             directories=self._directories,
             validate=self._validate,
         )
-        self._skills = {skill.name: skill for skill in skills}
+        self._sops = {sop.name: sop for sop in sops}
 
     def _register_tools(self) -> None:  # noqa: C901
-        """Register skill management tools with the toolset.
+        """Register SOP management tools with the toolset.
 
-        This method registers all four skill management tools:
-        - list_skills: List available skills
-        - activate_skill: Activate a skill and load its instructions
-        - read_skill_resource: Read skill resources
-        - run_skill_script: Execute skill scripts
+        This method registers all four SOP management tools:
+        - list_sops: List available SOPs
+        - activate_sop: Activate a SOP and load its instructions
+        - read_sop_resource: Read SOP resources
+        - run_sop_script: Execute SOP scripts
         """
 
         @self.tool
-        async def list_skills(_ctx: RunContext[Any]) -> str:
-            """List all available skills with their descriptions.
+        async def list_sops(_ctx: RunContext[Any]) -> str:
+            """List all available SOPs with their descriptions.
 
-            Only use this tool if the available skills are not in your system prompt.
+            Only use this tool if the available SOPs are not in your system prompt.
 
             Returns:
-                Formatted list of available skills with names and descriptions.
+                Formatted list of available SOPs with names and descriptions.
             """
-            if not self._skills:
-                return 'No skills available.'
+            if not self._sops:
+                return 'No SOPs available.'
 
-            lines = ['# Available Skills', '']
+            lines = ['# Available SOPs', '']
 
-            for name, skill in sorted(self._skills.items()):
-                lines.append(f'{name}: {skill.metadata.description}')
+            for name, sop in sorted(self._sops.items()):
+                lines.append(f'{name}: {sop.metadata.description}')
 
             return '\n'.join(lines)
 
         @self.tool
-        async def activate_skill(ctx: RunContext[Any], skill_name: str) -> str:  # noqa: D417
-            """Activate a skill and load its full instructions, making it the current available skill.
+        async def activate_sop(ctx: RunContext[Any], sop_name: str) -> str:  # noqa: D417
+            """Activate a SOP and load its full instructions, making it the current available SOP.
 
-            Always activate the skill before using read_skill_resource
-            or run_skill_script to understand the skill's capabilities, available
+            Always activate the SOP before using read_sop_resource
+            or run_sop_script to understand the SOP's capabilities, available
             resources, scripts, and their usage patterns.
 
             Args:
-                skill_name: Name of the skill to activate.
+                sop_name: Name of the SOP to activate.
 
             Returns:
-                Full skill instructions including available resources and scripts.
+                Full SOP instructions including available resources and scripts.
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
-            if skill_name not in self._skills:
-                available = ', '.join(sorted(self._skills.keys())) or 'none'
-                return f"Error: Skill '{skill_name}' not found. Available skills: {available}"
+            if sop_name not in self._sops:
+                available = ', '.join(sorted(self._sops.keys())) or 'none'
+                return f"Error: SOP '{sop_name}' not found. Available SOPs: {available}"
 
-            skill = self._skills[skill_name]
-            logger.info('Activating skill: %s', skill_name)
+            sop = self._sops[sop_name]
+            logger.info('Activating SOP: %s', sop_name)
 
             lines = [
-                f'# Skill: {skill.name}',
-                f'**Description:** {skill.metadata.description}',
-                f'**Path:** {skill.path}',
+                f'# SOP: {sop.name}',
+                f'**Description:** {sop.metadata.description}',
+                f'**Path:** {sop.path}',
                 '',
             ]
 
             # Add resource list if available
-            if skill.resources:
+            if sop.resources:
                 lines.append('**Available Resources:**')
-                for resource in skill.resources:
+                for resource in sop.resources:
                     lines.append(f'- {resource.name}')
                 lines.append('')
 
             # Add scripts list if available
-            if skill.scripts:
+            if sop.scripts:
                 lines.append('**Available Scripts:**')
-                for script in skill.scripts:
+                for script in sop.scripts:
                     lines.append(f'- {script.name}')
                 lines.append('')
 
             lines.append('---')
             lines.append('')
-            lines.append(skill.content)
+            lines.append(sop.content)
 
             return '\n'.join(lines)
 
         @self.tool
-        async def read_skill_resource(  # noqa: D417
+        async def read_sop_resource(  # noqa: D417
             ctx: RunContext[Any],
-            skill_name: str,
+            sop_name: str,
             resource_name: str,
         ) -> str:
-            """Read a resource file from a skill (e.g., FORMS.md, REFERENCE.md).
+            """Read a resource file from a SOP (e.g., FORMS.md, REFERENCE.md).
 
-            Call activate_skill first to see which resources are available.
+            Call activate_sop first to see which resources are available.
 
             Args:
-                skill_name: Name of the skill.
+                sop_name: Name of the SOP.
                 resource_name: The resource filename (e.g., "FORMS.md").
 
             Returns:
                 The resource file content.
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
-            if skill_name not in self._skills:
-                return f"Error: Skill '{skill_name}' not found."
+            if sop_name not in self._sops:
+                return f"Error: SOP '{sop_name}' not found."
 
-            skill = self._skills[skill_name]
+            sop = self._sops[sop_name]
 
             # Find the resource
             resource = None
-            for r in skill.resources:
+            for r in sop.resources:
                 if r.name == resource_name:
                     resource = r
                     break
 
             if resource is None:
-                available = [r.name for r in skill.resources]
+                available = [r.name for r in sop.resources]
                 return (
-                    f"Error: Resource '{resource_name}' not found in skill '{skill_name}'. "
+                    f"Error: Resource '{resource_name}' not found in SOP '{sop_name}'. "
                     f'Available resources: {available}'
                 )
 
             # Security check
-            if not _is_safe_path(skill.path, resource.path):
-                logger.warning('Path traversal attempt detected: %s in %s', resource_name, skill_name)
-                return 'Error: Resource path escapes skill directory.'
+            if not _is_safe_path(sop.path, resource.path):
+                logger.warning('Path traversal attempt detected: %s in %s', resource_name, sop_name)
+                return 'Error: Resource path escapes SOP directory.'
 
             try:
                 content = resource.path.read_text(encoding='utf-8')
-                logger.info('Read resource: %s from skill %s', resource_name, skill_name)
+                logger.info('Read resource: %s from SOP %s', resource_name, sop_name)
                 return content
             except OSError as e:
                 logger.error('Failed to read resource %s: %s', resource_name, e)
-                raise SkillResourceLoadError(f"Failed to read resource '{resource_name}': {e}") from e
+                raise SOPResourceLoadError(f"Failed to read resource '{resource_name}': {e}") from e
 
         @self.tool
-        async def run_skill_script(  # noqa: D417
+        async def run_sop_script(  # noqa: D417
             ctx: RunContext[Any],
-            skill_name: str,
+            sop_name: str,
             script_name: str,
             **kwargs
         ) -> str:
-            """Execute a skill script with keyword arguments.
+            """Execute a SOP script with keyword arguments.
 
-            Call activate_skill first to understand the script's expected arguments,
+            Call activate_sop first to understand the script's expected arguments,
             usage patterns, and example invocations. Running scripts without
             loading instructions first will likely fail.
 
             Args:
-                skill_name: Name of the skill.
+                sop_name: Name of the SOP.
                 script_name: The script name (without .py extension).
                 kwargs: Optional keyword arguments.
 
@@ -626,39 +626,39 @@ class SOPsToolset(FunctionToolset):
                 The script's output (stdout and stderr combined).
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
-            print(f"LOG: skill_name: {skill_name}, ctx.deps: {ctx.deps}, kwargs: {kwargs}.")    
-            if skill_name not in self._skills:
-                return f"Error: Skill '{skill_name}' not found."
+            print(f"LOG: sop_name: {sop_name}, ctx.deps: {ctx.deps}, kwargs: {kwargs}.")    
+            if sop_name not in self._sops:
+                return f"Error: SOP '{sop_name}' not found."
 
-            skill = self._skills[skill_name]
+            sop = self._sops[sop_name]
 
             # Find the script
             script = None
-            for s in skill.scripts:
+            for s in sop.scripts:
                 if s.name == script_name:
                     script = s
                     break
 
             if script is None:
-                available = [s.name for s in skill.scripts]
+                available = [s.name for s in sop.scripts]
                 return (
-                    f"Error: Script '{script_name}' not found in skill '{skill_name}'. Available scripts: {available}"
+                    f"Error: Script '{script_name}' not found in SOP '{sop_name}'. Available scripts: {available}"
                 )
 
             # Security check
-            if not _is_safe_path(skill.path, script.path):
-                logger.warning('Path traversal attempt detected: %s in %s', script_name, skill_name)
-                return 'Error: Script path escapes skill directory.'
+            if not _is_safe_path(sop.path, script.path):
+                logger.warning('Path traversal attempt detected: %s in %s', script_name, sop_name)
+                return 'Error: Script path escapes SOP directory.'
 
             # Build command
-            logger.info('Running script: %s with kwargs: %s', script_name, kwargs)
+            logger.info('Running script: %s with kwargs: %s', script_name, sop_name)
             try:
                 # Use run_from_file to run the script
                 return await run_from_file(script.path, **kwargs)
 
             except OSError as e:
                 logger.error('Failed to execute script %s: %s', script_name, e)
-                raise SkillScriptExecutionError(f"Failed to execute script '{script_name}': {e}") from e
+                raise SOPScriptExecutionError(f"Failed to execute script '{script_name}': {e}") from e
             except TypeError as e:
                 logger.error('Type error occurred while executing script %s: %s', script_name, e)
                 # raise 让agent重试
@@ -666,13 +666,13 @@ class SOPsToolset(FunctionToolset):
             except Exception as e:
                 logger.error('Unknown error occurred while executing script %s: %s', script_name, e)
                 # 这里不重试
-                raise SkillScriptExecutionError(f"Unknown error occurred while executing script '{script_name}': {e}") from e
+                raise SOPScriptExecutionError(f"Unknown error occurred while executing script '{script_name}': {e}") from e
 
-    def _extract_script_args(self, skill_content: str, script_name: str) -> str:
-        """Extract script arguments from skill content.
+    def _extract_script_args(self, sop_content: str, script_name: str) -> str:
+        """Extract script arguments from SOP content.
         
         Args:
-            skill_content: The full content of SKILL.md
+            sop_content: The full content of SOP.md
             script_name: Name of the script to extract args for
         
         Returns:
@@ -684,7 +684,7 @@ class SOPsToolset(FunctionToolset):
         # Pattern: "- Script Args" followed by indented parameter lines
         # Matches lines that start with spaces/tabs after "- Script Args"
         pattern = r'- Script Args\s*\n((?:\s+[^\n]+\n?)+)'
-        match = re.search(pattern, skill_content, re.MULTILINE)
+        match = re.search(pattern, sop_content, re.MULTILINE)
         
         if match:
             args_text = match.group(1)
@@ -697,69 +697,69 @@ class SOPsToolset(FunctionToolset):
         
         return ''
 
-    def get_skills_system_prompt(self) -> str:
-        """Get the combined system prompt from all loaded skills.
+    def get_sops_system_prompt(self) -> str:
+        """Get the combined system prompt from all loaded SOPs.
 
         This should be added to the agent's system prompt to provide
-        skill discovery and usage instructions.
+        SOP discovery and usage instructions.
 
-        Following Anthropic's approach, this includes all skill metadata upfront
-        in the system prompt, enabling the agent to discover and select skills
-        without needing to call list_skills() first.
+        Following Anthropic's approach, this includes all SOP metadata upfront
+        in the system prompt, enabling the agent to discover and select SOPs
+        without needing to call list_sops() first.
 
         Returns:
             Formatted system prompt containing:
-            - All skill metadata (name + description)
-            - Instructions for using skill tools
+            - All SOP metadata (name + description)
+            - Instructions for using SOP tools
             - Progressive disclosure guidance
         """
-        if not self._skills:
+        if not self._sops:
             return ''
 
         lines = [
-            '# Skills',
+            '# SOPs',
             '',
-            'You have access to skills that extend your capabilities. ',
-            'Skills are modular packages containing instructions, resources, and scripts for specialized tasks.',
-            'Skills are in standby mode by default. You must use the `activate_skill` tool to activate a skill and make it the current available skill.',
-            '**State management**: Only one skill can be available at a time. When you activate a new skill, it becomes the current available skill and replaces any previously activated skill. Only the currently available skill can be used for `read_skill_resource` and `run_skill_script`.',
+            'You have access to SOPs that extend your capabilities. ',
+            'SOPs are modular packages containing instructions, resources, and scripts for specialized tasks.',
+            'SOPs are in standby mode by default. You must use the `activate_sop` tool to activate a SOP and make it the current available SOP.',
+            '**State management**: Only one SOP can be available at a time. When you activate a new SOP, it becomes the current available SOP and replaces any previously activated SOP. Only the currently available SOP can be used for `read_sop_resource` and `run_sop_script`.',
             '',
-            '**You CANNOT call skills directly. You MUST use skill tools to interact with skills:**',
-            '- `activate_skill(skill_name)` - to activate a skill (load its instructions and make it the current available skill)',
-            '- `read_skill_resource(skill_name, resource_name)` - to read skill resources',
-            '- `run_skill_script(skill_name, script_name, **kwargs)` - to execute skill scripts',
+            '**You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs:**',
+            '- `activate_sop(sop_name)` - to activate a SOP (load its instructions and make it the current available SOP)',
+            '- `read_sop_resource(sop_name, resource_name)` - to read SOP resources',
+            '- `run_sop_script(sop_name, script_name, **kwargs)` - to execute SOP scripts',
             '',
-            '## Standby Skills',
+            '## Standby SOPs',
             '',
-            'The following skills are in standby mode:',
+            'The following SOPs are in standby mode:',
             '',
         ]
 
-        # List all skills with descriptions and script parameters
-        for name, skill in sorted(self._skills.items()):
-            lines.append(f'- **{name}**: {skill.metadata.description}')
-            # # Extract script arguments from skill content
-            # if skill.scripts:
-            #     for script in skill.scripts:
-            #         script_args = self._extract_script_args(skill.content, script.name)
+        # List all SOPs with descriptions and script parameters
+        for name, sop in sorted(self._sops.items()):
+            lines.append(f'- **{name}**: {sop.metadata.description}')
+            # # Extract script arguments from SOP content
+            # if sop.scripts:
+            #     for script in sop.scripts:
+            #         script_args = self._extract_script_args(sop.content, script.name)
             #         if script_args:
             #             lines.append(f'  - Script `{script.name}` parameters: {script_args}')
 
         lines.extend(
             [
-                '## How to Use Skills',
+                '## How to Use SOPs',
                 '',
-                '**REMINDER: Skills are NOT callable. You MUST use skill tools (activate_skill, run_skill_script, etc.) to interact with skills.**',
+                '**REMINDER: SOPs are NOT callable. You MUST use SOP tools (activate_sop, run_sop_script, etc.) to interact with SOPs.**',
                 '',
-                '**Progressive disclosure**: Activate skills only when needed.',
+                '**Progressive disclosure**: Activate SOPs only when needed.',
                 '',
-                '1. **When a skill is relevant to the current task**: Use `activate_skill(skill_name)` to activate the skill and read its full instructions.',
-                '2. **For additional documentation**: Use `read_skill_resource(skill_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
-                '3. **To execute skill scripts**: Use `run_skill_script(skill_name, script_name, **kwargs)` with appropriate keyword arguments.',
+                '1. **When a SOP is relevant to the current task**: Use `activate_sop(sop_name)` to activate the SOP and read its full instructions.',
+                '2. **For additional documentation**: Use `read_sop_resource(sop_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
+                '3. **To execute SOP scripts**: Use `run_sop_script(sop_name, script_name, **kwargs)` with appropriate keyword arguments.',
                 '',
                 '**CRITICAL: Parameter Requirements**',
                 '',
-                'Each skill script has SPECIFIC parameter requirements listed above. When calling `run_skill_script`:',
+                'Each SOP script has SPECIFIC parameter requirements listed above. When calling `run_sop_script`:',
                 '',
                 '1. **Use EXACTLY the parameter names shown above** for each script',
                 '2. **DO NOT invent new parameter names**',
@@ -767,9 +767,9 @@ class SOPsToolset(FunctionToolset):
                 '4. **Parameter names are case-sensitive**: Use exact spelling from the list above',
                 '',
                 '**Best practices**:',
-                '- Select skills based on task relevance and descriptions listed above',
-                '- Check the parameter list above BEFORE calling `run_skill_script`',
-                '- If you need more details, call `activate_skill(skill_name)` to activate and read full instructions',
+                '- Select SOPs based on task relevance and descriptions listed above',
+                '- Check the parameter list above BEFORE calling `run_sop_script`',
+                '- If you need more details, call `activate_sop(sop_name)` to activate and read full instructions',
                 '',
             ]
         )
@@ -777,34 +777,34 @@ class SOPsToolset(FunctionToolset):
         return '\n'.join(lines)
 
     @property
-    def skills(self) -> dict[str, Skill]:
-        """Get the dictionary of loaded skills.
+    def sops(self) -> dict[str, SOP]:
+        """Get the dictionary of loaded SOPs.
 
         Returns:
-            Dictionary mapping skill names to Skill objects.
+            Dictionary mapping SOP names to SOP objects.
         """
-        return self._skills
+        return self._sops
 
-    def get_skill(self, name: str) -> Skill:
-        """Get a specific skill by name.
+    def get_sop(self, name: str) -> SOP:
+        """Get a specific SOP by name.
 
         Args:
-            name: The skill name.
+            name: The SOP name.
 
         Returns:
-            The Skill object.
+            The SOP object.
 
         Raises:
-            SkillNotFoundError: If the skill is not found.
+            SOPNotFoundError: If the SOP is not found.
         """
-        if name not in self._skills:
-            raise SkillNotFoundError(f"Skill '{name}' not found")
-        return self._skills[name]
+        if name not in self._sops:
+            raise SOPNotFoundError(f"SOP '{name}' not found")
+        return self._sops[name]
 
     def refresh(self) -> None:
-        """Re-discover skills from configured directories.
+        """Re-discover SOPs from configured directories.
 
-        Call this method to reload skills after changes to the filesystem.
+        Call this method to reload SOPs after changes to the filesystem.
         """
-        logger.info('Refreshing skills from directories')
-        self._discover_skills()
+        logger.info('Refreshing SOPs from directories')
+        self._discover_sops()
