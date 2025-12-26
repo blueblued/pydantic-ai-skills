@@ -464,7 +464,9 @@ class SOPsToolset(FunctionToolset):
             if sop.has_toolset:
                 lines.append('**Available Tools:**')
                 sop_ts = self._get_toolset(sop_name)
-                ctx.deps['sop_toolset'] = sop_ts
+                if hasattr(ctx.deps, 'state'): # 把激活的工具集传出来，以便在合适的时机调用
+                    ctx.deps.state.sop_toolset = sop_ts
+                
                 for tool in sop_ts.tools.keys():
                     lines.append(f'- {tool}')
                 lines.append('')
