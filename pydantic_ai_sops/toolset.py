@@ -554,7 +554,7 @@ class SOPsToolset(FunctionToolset):
             return ''
 
         lines = [
-            '# SOPs',
+            '# SOPs(Standard Operating Procedures)',
             '',
             'You have access to SOPs that extend your capabilities. ',
             'SOPs are modular packages containing instructions, resources, and toolset for specialized tasks.',
