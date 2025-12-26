@@ -436,14 +436,14 @@ class SOPsToolset(FunctionToolset):
         async def activate_sop(ctx: RunContext[Any], sop_name: str) -> str:  # noqa: D417
             """Activate a SOP and load its full instructions, making it the current available SOP.
 
-            Always activate the SOP before using read_sop_resource
-            to understand the SOP's capabilities, available resources, and their usage patterns.
+            Always activate the SOP before using related tools or read_sop_resource
+            to understand the SOP's capabilities, tools, available resources, and their usage patterns.
 
             Args:
                 sop_name: Name of the SOP to activate.
 
             Returns:
-                Full SOP instructions including available resources.
+                Full SOP instructions including available tools and resources.
             """
             _ = ctx  # Required by Pydantic AI toolset protocol
             if sop_name not in self._sops:
@@ -460,13 +460,6 @@ class SOPsToolset(FunctionToolset):
                 '',
             ]
 
-            # Add resource list if available
-            if sop.resources:
-                lines.append('**Available Resources:**')
-                for resource in sop.resources:
-                    lines.append(f'- {resource.name}')
-                lines.append('')
-
             # Add toolset if available
             if sop.has_toolset:
                 lines.append('**Available Tools:**')
@@ -474,6 +467,13 @@ class SOPsToolset(FunctionToolset):
                 ctx.deps['sop_toolset'] = sop_ts
                 for tool in sop_ts.tools.keys():
                     lines.append(f'- {tool}')
+                lines.append('')
+
+            # Add resource list if available
+            if sop.resources:
+                lines.append('**Available Resources:**')
+                for resource in sop.resources:
+                    lines.append(f'- {resource.name}')
                 lines.append('')
 
             lines.append('---')
@@ -531,35 +531,6 @@ class SOPsToolset(FunctionToolset):
             except OSError as e:
                 logger.error('Failed to read resource %s: %s', resource_name, e)
                 raise SOPResourceLoadError(f"Failed to read resource '{resource_name}': {e}") from e
-
-    def _extract_script_args(self, sop_content: str, script_name: str) -> str:
-        """Extract script arguments from SOP content.
-        
-        Args:
-            sop_content: The full content of SOP.md
-            script_name: Name of the script to extract args for
-        
-        Returns:
-            Formatted string of script arguments, or empty string if not found
-        """
-        import re
-        
-        # Look for script-specific sections or general Script Args section
-        # Pattern: "- Script Args" followed by indented parameter lines
-        # Matches lines that start with spaces/tabs after "- Script Args"
-        pattern = r'- Script Args\s*\n((?:\s+[^\n]+\n?)+)'
-        match = re.search(pattern, sop_content, re.MULTILINE)
-        
-        if match:
-            args_text = match.group(1)
-            # Extract parameter names (format: param_name:type or param_name:type (required))
-            # Handles formats like: "expression:str", "expression:str (required)", "param: int", etc.
-            param_pattern = r'(\w+)\s*:\s*\w+(?:\s*\(required\))?'
-            params = re.findall(param_pattern, args_text)
-            if params:
-                return ', '.join(params)
-        
-        return ''
 
     def get_sops_system_prompt(self) -> str:
         """Get the combined system prompt from all loaded SOPs.
