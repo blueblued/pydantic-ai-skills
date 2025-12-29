@@ -577,7 +577,14 @@ class SOPsToolset(FunctionToolset):
 
         # List all SOPs with descriptions and script parameters
         for name, sop in sorted(self._sops.items()):
-            lines.append(f'- **{name}**: {sop.metadata.description}')
+            lines.append(f'- **{name}**:')
+            lines.append(f'  - Description: {sop.metadata.description}')
+            if sop.metadata.extra.get('use-case'):
+                lines.append(f'  - Use case:')
+                use_case_yaml = yaml.dump(sop.metadata.extra.get('use-case'), allow_unicode=True, default_flow_style=False)
+                # 为每行添加适当的缩进
+                indented_yaml = '\n'.join(f'    {line}' if line.strip() else line for line in use_case_yaml.split('\n'))
+                lines.append(indented_yaml)
             # # Extract script arguments from SOP content
             # if sop.scripts:
             #     for script in sop.scripts:
