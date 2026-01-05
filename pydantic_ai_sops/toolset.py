@@ -455,7 +455,7 @@ class SOPsToolset(FunctionToolset):
             logger.info('Activating SOP: %s', sop_name)
 
             lines = [
-                f'# SOP: {sop.name}',
+                f'# Currently Activated SOP: {sop.name}',
                 f'**Description:** {sop.metadata.description}',
                 f'**Path:** {sop.path}',
                 '',
