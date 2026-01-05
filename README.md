@@ -1,4 +1,4 @@
-# pydantic-ai-skills
+# pydantic-ai-sops
 
 A standardized, composable framework for building and managing Agent Skills within the Pydantic AI ecosystem.
 
