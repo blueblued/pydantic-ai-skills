@@ -481,6 +481,8 @@ class SOPsToolset(FunctionToolset):
                 for resource in sop.resources:
                     lines.append(f'- {resource.name}')
                 lines.append('')
+            else:
+                lines.append('**No further resources available.**')
 
             lines.append('---')
             lines.append('')
