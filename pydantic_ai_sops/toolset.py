@@ -490,7 +490,7 @@ class SOPsToolset(FunctionToolset):
             lines.append(sop.content)
 
             return_value = '\n'.join(lines)
-            content = [f"SOP {sop.name} is activated. Refer to the SOP rules to process and reply to the user's request."]
+            content = [f"**SOP {sop.name} is activated. Refer to the SOP rules to process and reply to the user's request now.**"]
             
             return ToolReturn(
                 return_value=return_value,
@@ -567,20 +567,26 @@ class SOPsToolset(FunctionToolset):
             return ''
 
         lines = [
-            '# SOPs(Standard Operating Procedures)',
+            '# SOPs (Standard Operating Procedures)',
             '',
-            'You have access to SOPs that extend your capabilities. ',
-            'SOPs are modular packages containing instructions, resources, and toolset for specialized tasks.',
-            'SOPs are in standby mode by default. You must use the `activate_sop` tool to activate a SOP and make it the current available SOP.',
-            '**State management**: Only one SOP can be available at a time. When you activate a new SOP, it becomes the current available SOP and the SOP\'s tools become available to you.',
+            'SOPs are modular packages that extend your capabilities. Each SOP contains instructions, resources, and toolsets for specialized tasks.',
             '',
-            '**You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs. You can use `list_sops()` to list all available SOPs.**',
-            '- `activate_sop(sop_name)` - to activate a SOP (load its instructions and make it the current available SOP and its tools become available to you)',
-            '- `read_sop_resource(sop_name, resource_name)` - to read SOP resources',
+            '**SOP States - Important Concepts:**',
+            '- **Available SOPs**: All SOPs that are installed and can be activated. They are in standby mode by default.',
+            '- **Active SOP**: The currently activated SOP. Only one SOP can be active at a time. When you activate a SOP, it becomes the active SOP and its tools become available to you.',
+            '- **Standby SOPs**: Available SOPs that are not currently active. They must be activated before use.',
             '',
-            '## Standby SOPs',
+            '**Important Rules:**',
+            '- SOPs are in standby mode by default and must be activated before use.',
+            '- Only one SOP can be active at a time. Activating a new SOP replaces the current active SOP.',
+            '- **You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs.**',
             '',
-            'The following SOPs are in standby mode:',
+            '**Available SOP Tools:**',
+            '- `list_sops()` - List all available SOPs (both standby and active) with their descriptions',
+            '- `activate_sop(sop_name)` - Activate a standby SOP (loads its instructions, makes it the active SOP, and makes its tools available)',
+            '- `read_sop_resource(sop_name, resource_name)` - Read SOP resource files (e.g., FORMS.md, REFERENCE.md)',
+            '',
+            '## Standby SOPs (Available but Not Active):',
             '',
         ]
 
@@ -605,14 +611,10 @@ class SOPsToolset(FunctionToolset):
             [
                 '## How to Use SOPs',
                 '',
-                '**REMINDER: SOPs are NOT callable. You MUST use SOP tools (activate_sop, read_sop_resource, etc.) to interact with SOPs.**',
-                '',
                 '**Progressive disclosure**: Activate SOPs only when needed.',
                 '',
                 '1. **When a SOP is relevant to the current task**: Use `activate_sop(sop_name)` to activate the SOP and read its full instructions.',
                 '2. **For additional documentation**: Use `read_sop_resource(sop_name, resource_name)` to read FORMS.md, REFERENCE.md, or other resources.',
-                '',
-                '**CRITICAL: Parameter Requirements**',
                 '',
                 '**Best practices**:',
                 '- Select SOPs based on task relevance and descriptions listed above',
