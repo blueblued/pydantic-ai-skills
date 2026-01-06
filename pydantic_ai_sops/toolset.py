@@ -34,6 +34,7 @@ import os
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.messages import ToolReturn
 
 from pydantic_ai_sops.exceptions import (
     SOPNotFoundError,
@@ -434,7 +435,7 @@ class SOPsToolset(FunctionToolset):
             return '\n'.join(lines)
 
         @self.tool
-        async def activate_sop(ctx: RunContext[Any], sop_name: str) -> str:  # noqa: D417
+        async def activate_sop(ctx: RunContext[Any], sop_name: str) -> ToolReturn | str:  # noqa: D417
             """Activate a SOP and load its full instructions, making it the current available SOP.
 
             Always activate the SOP before using related tools or read_sop_resource
@@ -455,7 +456,7 @@ class SOPsToolset(FunctionToolset):
             logger.info('Activating SOP: %s', sop_name)
 
             lines = [
-                f'# Currently Activated SOP: {sop.name}',
+                f'# SOP: {sop.name}',
                 f'**Description:** {sop.metadata.description}',
                 f'**Path:** {sop.path}',
                 '',
@@ -488,7 +489,13 @@ class SOPsToolset(FunctionToolset):
             lines.append('')
             lines.append(sop.content)
 
-            return '\n'.join(lines)
+            return_value = '\n'.join(lines)
+            content = [f"SOP {sop.name} is activated. Refer to the SOP rules to process and reply to the user's request."]
+            
+            return ToolReturn(
+                return_value=return_value,
+                content = content
+            )
 
         @self.tool
         async def read_sop_resource(  # noqa: D417
