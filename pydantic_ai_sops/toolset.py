@@ -415,7 +415,7 @@ class SOPsToolset(FunctionToolset):
         - read_sop_resource: Read SOP resources
         """
 
-        @self.tool
+        #@self.tool
         async def list_sops(_ctx: RunContext[Any]) -> str:
             """List all available SOPs with their descriptions.
 
@@ -497,7 +497,7 @@ class SOPsToolset(FunctionToolset):
                 content = content
             )
 
-        @self.tool
+        #@self.tool
         async def read_sop_resource(  # noqa: D417
             ctx: RunContext[Any],
             sop_name: str,
@@ -569,7 +569,7 @@ class SOPsToolset(FunctionToolset):
         lines = [
             '# SOPs (Standard Operating Procedures)',
             '',
-            'SOPs are modular packages that extend your capabilities. Each SOP contains instructions, resources, and toolsets for specialized tasks.',
+            'SOPs are modular packages that extend your capabilities. Each SOP contains instructions, and toolsets for specialized tasks.',
             '',
             '**SOP States - Important Concepts:**',
             '- **Available SOPs**: All SOPs that are installed and can be activated. They are in standby mode by default.',
@@ -582,9 +582,7 @@ class SOPsToolset(FunctionToolset):
             '- **You CANNOT call SOPs directly. You MUST use SOP tools to interact with SOPs.**',
             '',
             '**Available SOP Tools:**',
-            '- `list_sops()` - List all available SOPs (both standby and active) with their descriptions',
             '- `activate_sop(sop_name)` - Activate a standby SOP (loads its instructions, makes it the active SOP, and makes its tools available)',
-            '- `read_sop_resource(sop_name, resource_name)` - Read SOP resource files (e.g., FORMS.md, REFERENCE.md)',
             '',
             '## Standby SOPs (Available but Not Active):',
             '',
