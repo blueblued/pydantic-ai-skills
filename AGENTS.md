@@ -130,3 +130,38 @@ When to use, how to use, example invocations...
 ```
 
 For skills with scripts, document args in SKILL.md and place Python files in `scripts/` subdirectory.
+
+## Cursor Cloud specific instructions
+
+### Package naming migration
+
+The codebase has been renamed from `pydantic_ai_skills` to `pydantic_ai_sops`. The actual Python package on disk is `pydantic_ai_sops/`. Key class/function mapping:
+
+| AGENTS.md / old name | Actual name in code |
+|---|---|
+| `pydantic_ai_skills` (module) | `pydantic_ai_sops` |
+| `SkillsToolset` | `SOPsToolset` |
+| `Skill`, `SkillMetadata`, `SkillResource` | `SOP`, `SOPMetadata`, `SOPResource` |
+| `SkillNotFoundError`, `SkillValidationError` | `SOPNotFoundError`, `SOPValidationError` |
+| `parse_skill_md`, `_validate_skill_metadata` | `parse_sop_md`, `_validate_sop_metadata` |
+| `SKILL.md` (SOP definition file) | `SOP.md` |
+| `.skills` property, `get_skill()` | `.sops` property, `get_sop()` |
+| `get_skills_system_prompt()` | `get_sops_system_prompt()` |
+
+Several test files (`test_toolset.py`, `test_parsing.py`, `test_types.py`, `test_validation.py`) still import from the old `pydantic_ai_skills` module and will fail with `ModuleNotFoundError`. Only `test_discovery.py` uses the current imports and passes (8/9; one test references the removed `scripts` attribute on `SOP`).
+
+### Development commands (corrected for current code)
+
+```bash
+pip install -e ".[test]"          # Install with test deps
+pip install ruff                  # ruff is not bundled as a project dep
+pytest tests/test_discovery.py -v # Only test file with correct imports
+ruff check pydantic_ai_sops/     # Lint (note: existing warnings from unused imports)
+ruff format --check pydantic_ai_sops/  # Format check
+```
+
+### Notes
+
+- `~/.local/bin` must be on `PATH` for user-installed CLI tools (`pytest`, `ruff`, `coverage`).
+- No external services, Docker, or API keys are needed to run the test suite.
+- The `examples/basic_usage.py` requires an OpenAI API key and still imports from the old `pydantic_ai_skills` name.
