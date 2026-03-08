@@ -31,7 +31,7 @@ Instructions here.
 
 def test_discover_sops_multiple_sops(tmp_path: Path) -> None:
     """Test discovering multiple SOPs."""
-    # Create first skill
+    # Create first SOP
     sop1_dir = tmp_path / 'sop-one'
     sop1_dir.mkdir()
     (sop1_dir / 'SOP.md').write_text("""---
@@ -42,7 +42,7 @@ description: First SOP
 Content 1.
 """)
 
-    # Create second skill
+    # Create second SOP
     sop2_dir = tmp_path / 'sop-two'
     sop2_dir.mkdir()
     (sop2_dir / 'SOP.md').write_text("""---
@@ -61,7 +61,7 @@ Content 2.
 
 
 def test_discover_sops_with_resources(tmp_path: Path) -> None:
-    """Test discovering skills with resource files."""
+    """Test discovering SOPs with resource files."""
     sop_dir = tmp_path / 'test-sop'
     sop_dir.mkdir()
 
@@ -84,34 +84,34 @@ See FORMS.md for details.
     assert resource_names == {'FORMS.md', 'REFERENCE.md'}
 
 
-def test_discover_sops_with_scripts(tmp_path: Path) -> None:
-    """Test discovering skills with scripts."""
+def test_discover_sops_with_toolset(tmp_path: Path) -> None:
+    """Test discovering SOPs with toolset."""
     sop_dir = tmp_path / 'test-sop'
     sop_dir.mkdir()
 
     (sop_dir / 'SOP.md').write_text("""---
 name: test-sop
-description: SOP with scripts
+description: SOP with toolset
 ---
 
-Use the search script.
+Use the provided tools.
 """)
 
-    scripts_dir = sop_dir / 'scripts'
-    scripts_dir.mkdir()
-    (scripts_dir / 'search.py').write_text('#!/usr/bin/env python3\nprint("searching")')
-    (scripts_dir / 'process.py').write_text('#!/usr/bin/env python3\nprint("processing")')
+    tools_dir = sop_dir / 'tools'
+    tools_dir.mkdir()
+    (tools_dir / 'toolset.py').write_text("""from pydantic_ai.toolsets import FunctionToolset
+
+sop_ts = FunctionToolset(id="test-tools")
+""")
 
     sops = discover_sops([tmp_path], validate=True)
 
     assert len(sops) == 1
-    assert len(sops[0].scripts) == 2
-    script_names = {s.name for s in sops[0].scripts}
-    assert script_names == {'search', 'process'}
+    assert sops[0].has_toolset is True
 
 
 def test_discover_sops_nested_directories(tmp_path: Path) -> None:
-    """Test discovering skills in nested directories."""
+    """Test discovering SOPs in nested directories."""
     nested_dir = tmp_path / 'category' / 'subcategory' / 'test-sop'
     nested_dir.mkdir(parents=True)
 
@@ -130,7 +130,7 @@ Content.
 
 
 def test_discover_sops_missing_name_with_validation(tmp_path: Path) -> None:
-    """Test discovering skill missing name field with validation enabled."""
+    """Test discovering SOP missing name field with validation enabled."""
     sop_dir = tmp_path / 'test-sop'
     sop_dir.mkdir()
 
@@ -141,13 +141,13 @@ description: Missing name field
 Content.
 """)
 
-    # With validation, should skip this skill (log warning)
+    # With validation, should skip this SOP (log warning)
     sops = discover_sops([tmp_path], validate=True)
     assert len(sops) == 0
 
 
 def test_discover_sops_missing_name_without_validation(tmp_path: Path) -> None:
-    """Test discovering skill missing name field without validation."""
+    """Test discovering SOP missing name field without validation."""
     sop_dir = tmp_path / 'test-sop'
     sop_dir.mkdir()
 
@@ -165,7 +165,7 @@ Content.
 
 
 def test_discover_sops_nonexistent_directory(tmp_path: Path) -> None:
-    """Test discovering skills from non-existent directory."""
+    """Test discovering SOPs from non-existent directory."""
     nonexistent = tmp_path / 'does-not-exist'
 
     # Should not raise, just log warning
@@ -200,7 +200,7 @@ Content.
     assert len(sops) == 1
     assert len(sops[0].resources) == 3
 
-    resource_names = {r.name for r in sops[0].resources}
+    resource_names = {r.name.replace('\\', '/') for r in sops[0].resources}
     assert 'resources/schema.json' in resource_names
     assert 'resources/template.txt' in resource_names
     assert 'resources/nested/data.csv' in resource_names

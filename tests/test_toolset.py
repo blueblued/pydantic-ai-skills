@@ -1,27 +1,27 @@
-"""Tests for SkillsToolset."""
+"""Tests for SOPsToolset."""
 
 from pathlib import Path
 
 import pytest
 
-from pydantic_ai_skills import SOPsToolset
-from pydantic_ai_skills.exceptions import SkillNotFoundError
+from pydantic_ai_sops import SOPsToolset
+from pydantic_ai_sops.exceptions import SOPNotFoundError
 
 
 @pytest.fixture
-def sample_skills_dir(tmp_path: Path) -> Path:
-    """Create a temporary directory with sample skills."""
-    # Create skill 1
-    skill1_dir = tmp_path / 'skill-one'
-    skill1_dir.mkdir()
-    (skill1_dir / 'SKILL.md').write_text("""---
-name: skill-one
-description: First test skill for basic operations
+def sample_sops_dir(tmp_path: Path) -> Path:
+    """Create a temporary directory with sample SOPs."""
+    # Create SOP 1
+    sop1_dir = tmp_path / 'sop-one'
+    sop1_dir.mkdir()
+    (sop1_dir / 'SOP.md').write_text("""---
+name: sop-one
+description: First test SOP for basic operations
 ---
 
-# Skill One
+# SOP One
 
-Use this skill for basic operations.
+Use this SOP for basic operations.
 
 ## Instructions
 
@@ -29,237 +29,212 @@ Use this skill for basic operations.
 2. Return results
 """)
 
-    # Create skill 2 with resources
-    skill2_dir = tmp_path / 'skill-two'
-    skill2_dir.mkdir()
-    (skill2_dir / 'SKILL.md').write_text("""---
-name: skill-two
-description: Second test skill with resources
+    # Create SOP 2 with resources
+    sop2_dir = tmp_path / 'sop-two'
+    sop2_dir.mkdir()
+    (sop2_dir / 'SOP.md').write_text("""---
+name: sop-two
+description: Second test SOP with resources
 ---
 
-# Skill Two
+# SOP Two
 
-Advanced skill with resources.
+Advanced SOP with resources.
 
 See FORMS.md for details.
 """)
-    (skill2_dir / 'FORMS.md').write_text('# Forms\n\nForm filling guide.')
-    (skill2_dir / 'REFERENCE.md').write_text('# API Reference\n\nDetailed reference.')
+    (sop2_dir / 'FORMS.md').write_text('# Forms\n\nForm filling guide.')
+    (sop2_dir / 'REFERENCE.md').write_text('# API Reference\n\nDetailed reference.')
 
-    # Create skill 3 with scripts
-    skill3_dir = tmp_path / 'skill-three'
-    skill3_dir.mkdir()
-    (skill3_dir / 'SKILL.md').write_text("""---
-name: skill-three
-description: Third test skill with executable scripts
+    # Create SOP 3 with toolset
+    sop3_dir = tmp_path / 'sop-three'
+    sop3_dir.mkdir()
+    (sop3_dir / 'SOP.md').write_text("""---
+name: sop-three
+description: Third test SOP with toolset
 ---
 
-# Skill Three
+# SOP Three
 
-Skill with executable scripts.
+SOP with dynamic toolset.
 """)
+    tools_dir = sop3_dir / 'tools'
+    tools_dir.mkdir()
+    (tools_dir / 'toolset.py').write_text("""from pydantic_ai.toolsets import FunctionToolset
 
-    scripts_dir = skill3_dir / 'scripts'
-    scripts_dir.mkdir()
-    (scripts_dir / 'hello.py').write_text("""#!/usr/bin/env python3
-import sys
-print(f"Hello, {sys.argv[1] if len(sys.argv) > 1 else 'World'}!")
-""")
-    (scripts_dir / 'echo.py').write_text("""#!/usr/bin/env python3
-import sys
-print(' '.join(sys.argv[1:]))
+sop_ts = FunctionToolset(id="sop-three-tools")
+
+@sop_ts.tool
+async def hello(ctx, name: str = "World") -> str:
+    return f"Hello, {name}!"
 """)
 
     return tmp_path
 
 
-def test_toolset_initialization(sample_skills_dir: Path) -> None:
-    """Test SkillsToolset initialization."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+def test_toolset_initialization(sample_sops_dir: Path) -> None:
+    """Test SOPsToolset initialization."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    assert len(toolset.skills) == 3
-    assert 'skill-one' in toolset.skills
-    assert 'skill-two' in toolset.skills
-    assert 'skill-three' in toolset.skills
-
-
-def test_toolset_get_skill(sample_skills_dir: Path) -> None:
-    """Test getting a specific skill."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
-
-    skill = toolset.get_skill('skill-one')
-    assert skill.name == 'skill-one'
-    assert skill.metadata.description == 'First test skill for basic operations'
+    assert len(toolset.sops) == 3
+    assert 'sop-one' in toolset.sops
+    assert 'sop-two' in toolset.sops
+    assert 'sop-three' in toolset.sops
 
 
-def test_toolset_get_skill_not_found(sample_skills_dir: Path) -> None:
-    """Test getting a non-existent skill."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+def test_toolset_get_sop(sample_sops_dir: Path) -> None:
+    """Test getting a specific SOP."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    with pytest.raises(SkillNotFoundError, match="Skill 'nonexistent' not found"):
-        toolset.get_skill('nonexistent')
+    sop = toolset.get_sop('sop-one')
+    assert sop.name == 'sop-one'
+    assert sop.metadata.description == 'First test SOP for basic operations'
+
+
+def test_toolset_get_sop_not_found(sample_sops_dir: Path) -> None:
+    """Test getting a non-existent SOP."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
+
+    with pytest.raises(SOPNotFoundError, match="SOP 'nonexistent' not found"):
+        toolset.get_sop('nonexistent')
 
 
 @pytest.mark.asyncio
-async def test_list_skills_tool(sample_skills_dir: Path) -> None:
-    """Test the list_skills tool by checking skills were loaded."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+async def test_list_sops_tool(sample_sops_dir: Path) -> None:
+    """Test the list_sops tool by checking SOPs were loaded."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    # Verify all three skills were discovered
-    assert len(toolset.skills) == 3
-    assert 'skill-one' in toolset.skills
-    assert 'skill-two' in toolset.skills
-    assert 'skill-three' in toolset.skills
+    # Verify all three SOPs were discovered
+    assert len(toolset.sops) == 3
+    assert 'sop-one' in toolset.sops
+    assert 'sop-two' in toolset.sops
+    assert 'sop-three' in toolset.sops
 
     # Verify descriptions
-    assert toolset.skills['skill-one'].metadata.description == 'First test skill for basic operations'
-    assert toolset.skills['skill-two'].metadata.description == 'Second test skill with resources'
-    assert toolset.skills['skill-three'].metadata.description == 'Third test skill with executable scripts'
+    assert toolset.sops['sop-one'].metadata.description == 'First test SOP for basic operations'
+    assert toolset.sops['sop-two'].metadata.description == 'Second test SOP with resources'
+    assert toolset.sops['sop-three'].metadata.description == 'Third test SOP with toolset'
 
 
 @pytest.mark.asyncio
-async def test_load_skill_tool(sample_skills_dir: Path) -> None:
-    """Test the load_skill tool."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+async def test_activate_sop_tool(sample_sops_dir: Path) -> None:
+    """Test the activate_sop tool."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    # The tools are internal, so we test via the public methods
-    # We can check that the skills were loaded correctly
-    skill = toolset.get_skill('skill-one')
-    assert skill is not None
-    assert skill.name == 'skill-one'
-    assert 'First test skill for basic operations' in skill.metadata.description
-    assert 'Use this skill for basic operations' in skill.content
-
-
-@pytest.mark.asyncio
-async def test_load_skill_not_found(sample_skills_dir: Path) -> None:
-    """Test loading a non-existent skill."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
-
-    # Test that nonexistent skill raises an error
-    with pytest.raises(SkillNotFoundError):
-        toolset.get_skill('nonexistent-skill')
+    # We can check that the SOPs were loaded correctly
+    sop = toolset.get_sop('sop-one')
+    assert sop is not None
+    assert sop.name == 'sop-one'
+    assert 'First test SOP for basic operations' in sop.metadata.description
+    assert 'Use this SOP for basic operations' in sop.content
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_tool(sample_skills_dir: Path) -> None:
-    """Test the read_skill_resource tool."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+async def test_activate_sop_not_found(sample_sops_dir: Path) -> None:
+    """Test activating a non-existent SOP."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    # Test that skill-two has the expected resources
-    skill = toolset.get_skill('skill-two')
-    assert len(skill.resources) == 2
+    # Test that nonexistent SOP raises an error
+    with pytest.raises(SOPNotFoundError):
+        toolset.get_sop('nonexistent-sop')
 
-    resource_names = [r.name for r in skill.resources]
+
+@pytest.mark.asyncio
+async def test_read_sop_resource_tool(sample_sops_dir: Path) -> None:
+    """Test the read_sop_resource tool."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
+
+    # Test that sop-two has the expected resources
+    sop = toolset.get_sop('sop-two')
+    assert len(sop.resources) == 2
+
+    resource_names = [r.name for r in sop.resources]
     assert 'FORMS.md' in resource_names
     assert 'REFERENCE.md' in resource_names
 
     # Check that resources can be read
-    for resource in skill.resources:
+    for resource in sop.resources:
         assert resource.path.exists()
         assert resource.path.is_file()
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_not_found(sample_skills_dir: Path) -> None:
+async def test_read_sop_resource_not_found(sample_sops_dir: Path) -> None:
     """Test reading a non-existent resource."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    # Test skill with no resources
-    skill_one = toolset.get_skill('skill-one')
-    assert len(skill_one.resources) == 0
+    # Test SOP with no resources
+    sop_one = toolset.get_sop('sop-one')
+    assert len(sop_one.resources) == 0
 
-    # Test skill with resources
-    skill_two = toolset.get_skill('skill-two')
-    resource_names = [r.name for r in skill_two.resources]
+    # Test SOP with resources
+    sop_two = toolset.get_sop('sop-two')
+    resource_names = [r.name for r in sop_two.resources]
     assert 'NONEXISTENT.md' not in resource_names
 
 
 @pytest.mark.asyncio
-async def test_run_skill_script_tool(sample_skills_dir: Path) -> None:
-    """Test the run_skill_script tool."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+async def test_sop_with_toolset(sample_sops_dir: Path) -> None:
+    """Test SOP with toolset."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    # Test that skill-three has scripts
-    skill = toolset.get_skill('skill-three')
-    assert len(skill.scripts) == 2
+    # Test that sop-three has toolset
+    sop = toolset.get_sop('sop-three')
+    assert sop.has_toolset is True
 
-    script_names = [s.name for s in skill.scripts]
-    assert 'hello' in script_names
-    assert 'echo' in script_names
-
-    # Check that scripts can be found
-    for script in skill.scripts:
-        assert script.path.exists()
-        assert script.path.is_file()
-        assert script.path.suffix == '.py'
+    # Test that sop-one does not have toolset
+    sop_one = toolset.get_sop('sop-one')
+    assert sop_one.has_toolset is False
 
 
-@pytest.mark.asyncio
-async def test_run_skill_script_not_found(sample_skills_dir: Path) -> None:
-    """Test running a non-existent script."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
-
-    # Test skill with no scripts
-    skill_one = toolset.get_skill('skill-one')
-    assert len(skill_one.scripts) == 0
-
-    # Test skill with scripts
-    skill_three = toolset.get_skill('skill-three')
-    script_names = [s.name for s in skill_three.scripts]
-    assert 'nonexistent' not in script_names
-
-
-def test_get_skills_system_prompt(sample_skills_dir: Path) -> None:
+def test_get_sops_system_prompt(sample_sops_dir: Path) -> None:
     """Test generating the system prompt."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    prompt = toolset.get_skills_system_prompt()
+    prompt = toolset.get_sops_system_prompt()
 
-    # Should include all skill names and descriptions
-    assert 'skill-one' in prompt
-    assert 'skill-two' in prompt
-    assert 'skill-three' in prompt
-    assert 'First test skill for basic operations' in prompt
-    assert 'Second test skill with resources' in prompt
-    assert 'Third test skill with executable scripts' in prompt
+    # Should include all SOP names and descriptions
+    assert 'sop-one' in prompt
+    assert 'sop-two' in prompt
+    assert 'sop-three' in prompt
+    assert 'First test SOP for basic operations' in prompt
+    assert 'Second test SOP with resources' in prompt
+    assert 'Third test SOP with toolset' in prompt
 
     # Should include usage instructions
-    assert 'load_skill' in prompt
-    assert 'read_skill_resource' in prompt
-    assert 'run_skill_script' in prompt
+    assert 'activate_sop' in prompt
 
     # Should include progressive disclosure guidance
     assert 'Progressive disclosure' in prompt or 'progressive disclosure' in prompt
 
 
-def test_get_skills_system_prompt_empty() -> None:
-    """Test system prompt with no skills."""
+def test_get_sops_system_prompt_empty() -> None:
+    """Test system prompt with no SOPs."""
     toolset = SOPsToolset(directories=[], auto_discover=False)
 
-    prompt = toolset.get_skills_system_prompt()
+    prompt = toolset.get_sops_system_prompt()
     assert prompt == ''
 
 
-def test_toolset_refresh(sample_skills_dir: Path) -> None:
-    """Test refreshing skills."""
-    toolset = SOPsToolset(directories=[sample_skills_dir])
+def test_toolset_refresh(sample_sops_dir: Path) -> None:
+    """Test refreshing SOPs."""
+    toolset = SOPsToolset(directories=[sample_sops_dir])
 
-    initial_count = len(toolset.skills)
+    initial_count = len(toolset.sops)
 
-    # Add a new skill
-    new_skill_dir = sample_skills_dir / 'skill-four'
-    new_skill_dir.mkdir()
-    (new_skill_dir / 'SKILL.md').write_text("""---
-name: skill-four
-description: Fourth skill added after initialization
+    # Add a new SOP
+    new_sop_dir = sample_sops_dir / 'sop-four'
+    new_sop_dir.mkdir()
+    (new_sop_dir / 'SOP.md').write_text("""---
+name: sop-four
+description: Fourth SOP added after initialization
 ---
 
-New skill content.
+New SOP content.
 """)
 
     # Refresh
     toolset.refresh()
 
-    assert len(toolset.skills) == initial_count + 1
-    assert 'skill-four' in toolset.skills
+    assert len(toolset.sops) == initial_count + 1
+    assert 'sop-four' in toolset.sops

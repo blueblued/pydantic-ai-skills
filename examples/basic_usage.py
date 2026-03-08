@@ -9,28 +9,28 @@ from pathlib import Path
 
 from pydantic_ai import Agent
 
-from pydantic_ai_skills import SOPsToolset
+from pydantic_ai_sops import SOPsToolset
 
 
 async def main() -> None:
-    """Pydantic AI with Agent Skills."""
-    # Get the skills directory (examples/skills)
-    skills_dir = Path(__file__).parent / 'skills'
+    """Pydantic AI with SOPs."""
+    # Get the SOPs directory (examples/sops)
+    sops_dir = Path(__file__).parent / 'sops'
 
-    # Initialize Skills Toolset
-    skills_toolset = SOPsToolset(directories=[skills_dir])
+    # Initialize SOPs Toolset
+    sops_toolset = SOPsToolset(directories=[sops_dir])
 
-    # Create agent with skills
+    # Create agent with SOPs
     agent = Agent(
         model='openai:gpt-4o',
         instructions='You are a helpful research assistant.',
-        toolsets=[skills_toolset],
+        toolsets=[sops_toolset],
     )
 
-    # Add skills system prompt (includes skill descriptions and usage)
+    # Add SOPs system prompt (includes SOP descriptions and usage)
     @agent.system_prompt
-    async def add_skills_prompt() -> str:
-        return skills_toolset.get_skills_system_prompt()
+    async def add_sops_prompt() -> str:
+        return sops_toolset.get_sops_system_prompt()
 
     user_prompt = 'What are the main features of Pydantic AI framework?'
 

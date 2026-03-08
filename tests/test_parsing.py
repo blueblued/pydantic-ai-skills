@@ -1,79 +1,79 @@
-"""Tests for SKILL.md parsing."""
+"""Tests for SOP.md parsing."""
 
 import pytest
 
-from pydantic_ai_skills.exceptions import SkillValidationError
-from pydantic_ai_skills.toolset import parse_skill_md
+from pydantic_ai_sops.exceptions import SOPValidationError
+from pydantic_ai_sops.toolset import parse_sop_md
 
 
-def test_parse_skill_md_with_frontmatter() -> None:
-    """Test parsing SKILL.md with valid frontmatter."""
+def test_parse_sop_md_with_frontmatter() -> None:
+    """Test parsing SOP.md with valid frontmatter."""
     content = """---
-name: test-skill
-description: A test skill for testing
+name: test-sop
+description: A test SOP for testing
 version: 1.0.0
 ---
 
-# Test Skill
+# Test SOP
 
 This is the main content.
 """
 
-    frontmatter, instructions = parse_skill_md(content)
+    frontmatter, instructions = parse_sop_md(content)
 
-    assert frontmatter['name'] == 'test-skill'
-    assert frontmatter['description'] == 'A test skill for testing'
+    assert frontmatter['name'] == 'test-sop'
+    assert frontmatter['description'] == 'A test SOP for testing'
     assert frontmatter['version'] == '1.0.0'
-    assert instructions.startswith('# Test Skill')
+    assert instructions.startswith('# Test SOP')
 
 
-def test_parse_skill_md_without_frontmatter() -> None:
-    """Test parsing SKILL.md without frontmatter."""
-    content = """# Test Skill
+def test_parse_sop_md_without_frontmatter() -> None:
+    """Test parsing SOP.md without frontmatter."""
+    content = """# Test SOP
 
-This skill has no frontmatter.
+This SOP has no frontmatter.
 """
 
-    frontmatter, instructions = parse_skill_md(content)
+    frontmatter, instructions = parse_sop_md(content)
 
     assert frontmatter == {}
-    assert instructions.startswith('# Test Skill')
+    assert instructions.startswith('# Test SOP')
 
 
-def test_parse_skill_md_empty_frontmatter() -> None:
-    """Test parsing SKILL.md with empty frontmatter."""
+def test_parse_sop_md_empty_frontmatter() -> None:
+    """Test parsing SOP.md with empty frontmatter."""
     content = """---
 ---
 
-# Test Skill
+# Test SOP
 
 Content here.
 """
 
-    frontmatter, instructions = parse_skill_md(content)
+    frontmatter, instructions = parse_sop_md(content)
 
     assert frontmatter == {}
-    assert instructions.startswith('# Test Skill')
+    assert instructions.startswith('# Test SOP')
 
 
-def test_parse_skill_md_invalid_yaml() -> None:
-    """Test parsing SKILL.md with invalid YAML."""
+def test_parse_sop_md_invalid_yaml() -> None:
+    """Test parsing SOP.md with invalid YAML."""
     content = """---
-name: test-skill
+name: test-sop
 description: [unclosed array
 ---
 
 Content.
 """
 
-    with pytest.raises(SkillValidationError, match='Failed to parse YAML frontmatter'):
-        parse_skill_md(content)
+    with pytest.raises(SOPValidationError, match='Failed to parse YAML frontmatter'):
+        parse_sop_md(content)
 
 
-def test_parse_skill_md_multiline_description() -> None:
-    """Test parsing SKILL.md with multiline description."""
+def test_parse_sop_md_multiline_description() -> None:
+    """Test parsing SOP.md with multiline description."""
     content = """---
-name: test-skill
+name: test-sop
 description: |
   This is a multiline
   description for testing
@@ -82,17 +82,17 @@ description: |
 # Content
 """
 
-    frontmatter, _ = parse_skill_md(content)
+    frontmatter, _ = parse_sop_md(content)
 
     assert 'multiline' in frontmatter['description']
     assert 'description for testing' in frontmatter['description']
 
 
-def test_parse_skill_md_complex_frontmatter() -> None:
-    """Test parsing SKILL.md with complex frontmatter."""
+def test_parse_sop_md_complex_frontmatter() -> None:
+    """Test parsing SOP.md with complex frontmatter."""
     content = """---
-name: complex-skill
-description: Complex skill with metadata
+name: complex-sop
+description: Complex SOP with metadata
 version: 2.0.0
 author: Test Author
 tags:
@@ -103,11 +103,11 @@ metadata:
   priority: high
 ---
 
-# Complex Skill
+# Complex SOP
 """
 
-    frontmatter, _ = parse_skill_md(content)
+    frontmatter, _ = parse_sop_md(content)
 
-    assert frontmatter['name'] == 'complex-skill'
+    assert frontmatter['name'] == 'complex-sop'
     assert frontmatter['tags'] == ['testing', 'example']
     assert frontmatter['metadata']['category'] == 'test'

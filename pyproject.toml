@@ -34,8 +34,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dougtrajano/pydantic-ai-skills"
-Source = "https://github.com/dougtrajano/pydantic-ai-skills"
+Homepage = "https://github.com/blueblued/pydantic-ai-sops"
+Source = "https://github.com/blueblued/pydantic-ai-sops"
 
 [project.optional-dependencies]
 docs = [

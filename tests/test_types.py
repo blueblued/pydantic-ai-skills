@@ -1,65 +1,82 @@
-"""Tests for pydantic-ai-skills types."""
+"""Tests for pydantic-ai-sops types."""
 
 from pathlib import Path
 
-from pydantic_ai_skills.types import Skill, SkillMetadata, SkillResource, SkillScript
+from pydantic_ai_sops.types import SOP, SOPMetadata, SOPResource
 
 
-def test_skill_metadata_creation() -> None:
-    """Test creating SkillMetadata with required fields."""
-    metadata = SkillMetadata(name='test-skill', description='A test skill')
+def test_sop_metadata_creation() -> None:
+    """Test creating SOPMetadata with required fields."""
+    metadata = SOPMetadata(name='test-sop', description='A test SOP')
 
-    assert metadata.name == 'test-skill'
-    assert metadata.description == 'A test skill'
+    assert metadata.name == 'test-sop'
+    assert metadata.description == 'A test SOP'
     assert metadata.extra == {}
 
 
-def test_skill_metadata_with_extra_fields() -> None:
-    """Test SkillMetadata with additional fields."""
-    metadata = SkillMetadata(
-        name='test-skill', description='A test skill', extra={'version': '1.0.0', 'author': 'Test Author'}
+def test_sop_metadata_with_extra_fields() -> None:
+    """Test SOPMetadata with additional fields."""
+    metadata = SOPMetadata(
+        name='test-sop', description='A test SOP', extra={'version': '1.0.0', 'author': 'Test Author'}
     )
 
     assert metadata.extra['version'] == '1.0.0'
     assert metadata.extra['author'] == 'Test Author'
 
 
-def test_skill_resource_creation() -> None:
-    """Test creating SkillResource."""
-    resource = SkillResource(name='FORMS.md', path=Path('/tmp/skill/FORMS.md'))
+def test_sop_resource_creation() -> None:
+    """Test creating SOPResource."""
+    resource = SOPResource(name='FORMS.md', path=Path('/tmp/sop/FORMS.md'))
 
     assert resource.name == 'FORMS.md'
-    assert resource.path == Path('/tmp/skill/FORMS.md')
+    assert resource.path == Path('/tmp/sop/FORMS.md')
     assert resource.content is None
 
 
-def test_skill_script_creation() -> None:
-    """Test creating SkillScript."""
-    script = SkillScript(name='test_script', path=Path('/tmp/skill/scripts/test_script.py'), skill_name='test-skill')
+def test_sop_creation() -> None:
+    """Test creating a complete SOP."""
+    metadata = SOPMetadata(name='test-sop', description='A test SOP')
+    resource = SOPResource(name='FORMS.md', path=Path('/tmp/sop/FORMS.md'))
 
-    assert script.name == 'test_script'
-    assert script.path == Path('/tmp/skill/scripts/test_script.py')
-    assert script.skill_name == 'test-skill'
-
-
-def test_skill_creation() -> None:
-    """Test creating a complete Skill."""
-    metadata = SkillMetadata(name='test-skill', description='A test skill')
-    resource = SkillResource(name='FORMS.md', path=Path('/tmp/skill/FORMS.md'))
-    script = SkillScript(name='test_script', path=Path('/tmp/skill/scripts/test_script.py'), skill_name='test-skill')
-
-    skill = Skill(
-        name='test-skill',
-        path=Path('/tmp/skill'),
+    sop = SOP(
+        name='test-sop',
+        path=Path('/tmp/sop'),
         metadata=metadata,
         content='# Instructions\n\nTest instructions.',
         resources=[resource],
-        scripts=[script],
     )
 
-    assert skill.name == 'test-skill'
-    assert skill.path == Path('/tmp/skill')
-    assert skill.metadata.name == 'test-skill'
-    assert skill.content == '# Instructions\n\nTest instructions.'
-    assert len(skill.resources) == 1
-    assert len(skill.scripts) == 1
+    assert sop.name == 'test-sop'
+    assert sop.path == Path('/tmp/sop')
+    assert sop.metadata.name == 'test-sop'
+    assert sop.content == '# Instructions\n\nTest instructions.'
+    assert len(sop.resources) == 1
+    assert sop.has_toolset is False
+
+
+def test_sop_with_toolset() -> None:
+    """Test creating a SOP with toolset."""
+    metadata = SOPMetadata(name='test-sop', description='A test SOP with toolset')
+
+    sop = SOP(
+        name='test-sop',
+        path=Path('/tmp/sop'),
+        metadata=metadata,
+        content='# Instructions',
+        has_toolset=True,
+    )
+
+    assert sop.has_toolset is True
+
+
+def test_sop_description_property() -> None:
+    """Test SOP description property."""
+    metadata = SOPMetadata(name='test-sop', description='Test description')
+    sop = SOP(
+        name='test-sop',
+        path=Path('/tmp/sop'),
+        metadata=metadata,
+        content='Content',
+    )
+
+    assert sop.description == 'Test description'
